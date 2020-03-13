@@ -410,18 +410,7 @@ int main(int argc, const char *argv[])
     {
       if (Renderer::keyEventBuffer[i].scanCode == 283) // F2
       {
-        if (bTexPreviewVisible)
-        {
-          mShaderEditor.SetPosition( Scintilla::PRectangle( nMargin, nMargin, settings.nWidth - nMargin, settings.nHeight - nMargin * 2 - nDebugOutputHeight ) );
-          mDebugOutput .SetPosition( Scintilla::PRectangle( nMargin, settings.nHeight - nMargin - nDebugOutputHeight, settings.nWidth - nMargin, settings.nHeight - nMargin ) );
-          bTexPreviewVisible = false;
-        }
-        else
-        {
-          mShaderEditor.SetPosition( Scintilla::PRectangle( nMargin, nMargin, settings.nWidth - nMargin - nTexPreviewWidth - nMargin, settings.nHeight - nMargin * 2 - nDebugOutputHeight ) );
-          mDebugOutput .SetPosition( Scintilla::PRectangle( nMargin, settings.nHeight - nMargin - nDebugOutputHeight, settings.nWidth - nMargin - nTexPreviewWidth - nMargin, settings.nHeight - nMargin ) );
-          bTexPreviewVisible = true;
-        }
+         bTexPreviewVisible = !bTexPreviewVisible;
       }
       else if (Renderer::keyEventBuffer[i].scanCode == 286 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'r')) // F5
       {
@@ -466,7 +455,7 @@ int main(int argc, const char *argv[])
     Renderer::keyEventBufferCount = 0;
 
     Renderer::SetShaderConstant( "fGlobalTime", time );
-    Renderer::SetShaderConstant( "v2Resolution", settings.nWidth, settings.nHeight );
+    Renderer::SetShaderConstant( "v2Resolution", Renderer::nWidth, Renderer::nHeight );
 
     for (std::map<int,std::string>::iterator it = midiRoutes.begin(); it != midiRoutes.end(); it++)
     {
@@ -505,6 +494,11 @@ int main(int argc, const char *argv[])
 
     Renderer::RenderFullscreenQuad();
 
+    // TODO: only do that when window size change ?
+    int TexPreviewOffset = bTexPreviewVisible ? nTexPreviewWidth + nMargin : 0;
+    mShaderEditor.SetPosition(Scintilla::PRectangle(nMargin, nMargin, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin * 2 - nDebugOutputHeight));
+    mDebugOutput.SetPosition(Scintilla::PRectangle(nMargin, Renderer::nHeight - nMargin - nDebugOutputHeight, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin));
+    
     Renderer::StartTextRendering();
 
     if (bShowGui)
@@ -524,8 +518,8 @@ int main(int argc, const char *argv[])
       if (bTexPreviewVisible)
       {
         int y1 = nMargin;
-        int x1 = settings.nWidth - nMargin - nTexPreviewWidth;
-        int x2 = settings.nWidth - nMargin;
+        int x1 = Renderer::nWidth - nMargin - nTexPreviewWidth;
+        int x2 = Renderer::nWidth - nMargin;
         for (std::map<std::string, Renderer::Texture*>::iterator it = textures.begin(); it != textures.end(); it++)
         {
           int y2 = y1 + nTexPreviewWidth * (it->second->height / (float)it->second->width);

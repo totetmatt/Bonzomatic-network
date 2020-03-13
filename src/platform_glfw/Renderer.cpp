@@ -208,6 +208,8 @@ namespace Renderer
   void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
   void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
+  void window_size_callback(GLFWwindow* window, int width, int height);
+
   bool Open( RENDERER_SETTINGS * settings )
   {
     glfwSetErrorCallback(error_callback);
@@ -246,8 +248,7 @@ namespace Renderer
     glfwWindowHint(GLFW_COCOA_GRAPHICS_SWITCHING, GLFW_FALSE);
 #endif
 
-    // TODO: change in case of resize support
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, settings->windowMode == RENDERER_WINDOWMODE_FULLSCREEN ? GLFW_FALSE : GLFW_TRUE);
 
     // Prevent fullscreen window minimize on focus loss
     glfwWindowHint(GLFW_AUTO_ICONIFY, GL_FALSE);
@@ -276,6 +277,8 @@ namespace Renderer
     glfwSetCursorPosCallback(mWindow, cursor_position_callback);
     glfwSetMouseButtonCallback(mWindow, mouse_button_callback);
     glfwSetScrollCallback(mWindow, scroll_callback);
+
+    glfwSetWindowSizeCallback(mWindow, window_size_callback);
 
     glewExperimental = GL_TRUE;
     GLenum err = glewInit();
@@ -570,10 +573,17 @@ namespace Renderer
     mouseEventBufferCount++;
   }
 
+  void window_size_callback(GLFWwindow* window, int width, int height)
+  {
+    nWidth = width;
+    nHeight = height;
+  }
+
   void StartFrame()
   {
     glClearColor(0.08f, 0.18f, 0.18f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glViewport(0, 0, nWidth, nHeight);
   }
   void EndFrame()
   {
