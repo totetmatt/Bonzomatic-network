@@ -174,6 +174,7 @@ namespace Renderer
 
   int nWidth = 0;
   int nHeight = 0;
+  bool nSizeChanged = false;
 
   void MatrixOrthoOffCenterLH(float * pout, float l, float r, float b, float t, float zn, float zf)
   {
@@ -228,6 +229,7 @@ namespace Renderer
 
     nWidth = settings->nWidth;
     nHeight = settings->nHeight;
+    nSizeChanged = false;
 
     glfwWindowHint(GLFW_RED_BITS, 8);
     glfwWindowHint(GLFW_GREEN_BITS, 8);
@@ -577,6 +579,7 @@ namespace Renderer
   {
     nWidth = width;
     nHeight = height;
+    nSizeChanged = true;
   }
 
   void StartFrame()

@@ -21,6 +21,7 @@ namespace Renderer
 
   extern int nWidth;
   extern int nHeight;
+  extern bool nSizeChanged;
 
   bool OpenSetupDialog( RENDERER_SETTINGS * settings );
   bool Open( RENDERER_SETTINGS * settings );

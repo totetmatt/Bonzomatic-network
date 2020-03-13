@@ -380,6 +380,7 @@ int main(int argc, const char *argv[])
   while (!Renderer::WantsToQuit())
   {
     bool newShader = false;
+    bool needEditorUpdate = false;
     float time = Timer::GetTime() / 1000.0; // seconds
     Renderer::StartFrame();
 
@@ -411,6 +412,7 @@ int main(int argc, const char *argv[])
       if (Renderer::keyEventBuffer[i].scanCode == 283) // F2
       {
          bTexPreviewVisible = !bTexPreviewVisible;
+         needEditorUpdate = true;
       }
       else if (Renderer::keyEventBuffer[i].scanCode == 286 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'r')) // F5
       {
@@ -494,10 +496,14 @@ int main(int argc, const char *argv[])
 
     Renderer::RenderFullscreenQuad();
 
-    // TODO: only do that when window size change ?
-    int TexPreviewOffset = bTexPreviewVisible ? nTexPreviewWidth + nMargin : 0;
-    mShaderEditor.SetPosition(Scintilla::PRectangle(nMargin, nMargin, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin * 2 - nDebugOutputHeight));
-    mDebugOutput.SetPosition(Scintilla::PRectangle(nMargin, Renderer::nHeight - nMargin - nDebugOutputHeight, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin));
+    if (needEditorUpdate || Renderer::nSizeChanged)
+    {
+      Renderer::nSizeChanged = false;
+      int TexPreviewOffset = bTexPreviewVisible ? nTexPreviewWidth + nMargin : 0;
+      mShaderEditor.SetPosition(Scintilla::PRectangle(nMargin, nMargin, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin * 2 - nDebugOutputHeight));
+      mDebugOutput.SetPosition(Scintilla::PRectangle(nMargin, Renderer::nHeight - nMargin - nDebugOutputHeight, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin));
+
+    }
     
     Renderer::StartTextRendering();
 

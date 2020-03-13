@@ -400,6 +400,7 @@ Font * ShaderEditor::GetTextFont()
 void ShaderEditor::SetPosition( Scintilla::PRectangle rect )
 {
   wMain.SetPosition(rect);
+  InvalidateStyleRedraw();
 }
 
 bool ShaderEditor::FineTickerRunning( TickReason )
