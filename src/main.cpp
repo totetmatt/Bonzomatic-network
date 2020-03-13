@@ -64,27 +64,46 @@ void ReplaceTokens( std::string &sDefShader, const char * sTokenBegin, const cha
   }
 }
 
+bool CmdHasOption(int argc, const char *argv[], const std::string Option, std::string* Parameter=NULL) {
+  // start from 2nd param, first is exe name
+  for (int i = 1; i < argc; ++i) {
+    std::string strarg = argv[i];
+    size_t foundEqual = strarg.find('=');
+    if (foundEqual == std::string::npos) {
+      if (strarg == Option) {
+        return true;
+      }
+    } else {
+      std::string stroption = strarg.substr(0, foundEqual);
+      if (stroption == Option) {
+        if (Parameter) {
+          (*Parameter) = strarg.substr(foundEqual + 1, std::string::npos);
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 int main(int argc, const char *argv[])
 {
   Misc::PlatformStartup();
 
-  const char * configFile = "config.json";
-  if ( argc > 1 )
-  {
-    configFile = argv[ 1 ];
-    printf( "Loading config file '%s'...\n", configFile );
-  }
-  else
-  {
-    char configPath[ 256 ] = { 0 };
-    if ( getcwd( configPath, 255 ) )
+  std::string configFile = "config.json";
+  
+  if (CmdHasOption(argc, argv, "configfile", &configFile)) {
+    printf("Loading config file '%s'...\n", configFile);
+  } else {
+    char configPath[256] = { 0 };
+    if (getcwd(configPath, 255))
     {
-      printf( "Looking for config.json in '%s'...\n", configPath );
+      printf("Looking for config.json in '%s'...\n", configPath);
     }
   }
-
+  
   jsonxx::Object options;
-  FILE * fConf = fopen( configFile, "rb" );
+  FILE * fConf = fopen( configFile.c_str(), "rb" );
   if (fConf)
   {
     printf("Config file found, parsing...\n");
@@ -95,6 +114,13 @@ int main(int argc, const char *argv[])
     fclose(fConf);
 
     options.parse( szConfig );
+  }
+
+  bool SkipConfigDialog = CmdHasOption(argc, argv, "skipdialog");
+
+  std::string shaderFileName = Renderer::defaultShaderFilename;
+  if (CmdHasOption(argc, argv, "shader", &shaderFileName)) {
+    printf("Loading Shader: %s", shaderFileName.c_str());
   }
 
   RENDERER_SETTINGS settings;
@@ -118,8 +144,9 @@ int main(int argc, const char *argv[])
     if (options.get<jsonxx::Object>("window").has<jsonxx::Boolean>("borderlessfullscreen") && options.get<jsonxx::Object>("window").get<jsonxx::Boolean>("borderlessfullscreen"))
       settings.windowMode = RENDERER_WINDOWMODE_BORDERLESS;
   }
-  if (!Renderer::OpenSetupDialog( &settings ))
-    return -1;
+  if(!SkipConfigDialog)
+    if (!Renderer::OpenSetupDialog( &settings ))
+      return -1;
 #endif
 
   if (!Renderer::Open( &settings ))
@@ -302,7 +329,7 @@ int main(int argc, const char *argv[])
   bool shaderInitSuccessful = false;
   char szShader[65535];
   char szError[4096];
-  FILE * f = fopen(Renderer::defaultShaderFilename,"rb");
+  FILE * f = fopen(shaderFileName.c_str(),"rb");
   if (f)
   {
     printf("Loading last shader...\n");
@@ -563,7 +590,7 @@ int main(int argc, const char *argv[])
     if (newShader)
     {
       // Frame render successful, save shader
-      FILE * f = fopen(Renderer::defaultShaderFilename,"wb");
+      FILE * f = fopen(shaderFileName.c_str(),"wb");
       if (f)
       {
         fwrite( szShader, strlen(szShader), 1, f );
@@ -594,7 +621,7 @@ int main(int argc, const char *argv[])
 
   if ( !sPostExitCmd.empty() )
   {
-    Misc::ExecuteCommand( sPostExitCmd.c_str(), Renderer::defaultShaderFilename );
+    Misc::ExecuteCommand( sPostExitCmd.c_str(), shaderFileName.c_str() );
   }
 
   Misc::PlatformShutdown();
