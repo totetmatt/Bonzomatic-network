@@ -94,6 +94,10 @@ public:
         }
 
         if (setup->windowMode == RENDERER_WINDOWMODE_FULLSCREEN) {
+          SendDlgItemMessage(hWnd, IDC_FULLSCREEN2, BM_SETCHECK, 1, 1);
+        } else if(setup->windowMode == RENDERER_WINDOWMODE_BORDERLESS) {
+          SendDlgItemMessage(hWnd, IDC_FULLSCREEN3, BM_SETCHECK, 1, 1);
+        } else {
           SendDlgItemMessage(hWnd, IDC_FULLSCREEN, BM_SETCHECK, 1, 1);
         }
         if (setup->bVsync) {
@@ -111,7 +115,14 @@ public:
           {
             setup->nWidth  = gaResolutions[ SendDlgItemMessage(hWnd, IDC_RESOLUTION, CB_GETCURSEL, 0, 0) ].nWidth;
             setup->nHeight = gaResolutions[ SendDlgItemMessage(hWnd, IDC_RESOLUTION, CB_GETCURSEL, 0, 0) ].nHeight;
-            setup->windowMode = SendDlgItemMessage(hWnd, IDC_FULLSCREEN, BM_GETCHECK , 0, 0) ? RENDERER_WINDOWMODE_FULLSCREEN : RENDERER_WINDOWMODE_WINDOWED;
+            setup->windowMode = RENDERER_WINDOWMODE_WINDOWED;
+            if (SendDlgItemMessage(hWnd, IDC_FULLSCREEN2, BM_GETCHECK, 0, 0)) {
+              setup->windowMode = RENDERER_WINDOWMODE_FULLSCREEN;
+            }
+            if (SendDlgItemMessage(hWnd, IDC_FULLSCREEN3, BM_GETCHECK, 0, 0)) {
+              setup->windowMode = RENDERER_WINDOWMODE_BORDERLESS;
+            }
+
             setup->bVsync = SendDlgItemMessage(hWnd, IDC_VSYNC, BM_GETCHECK , 0, 0) > 0;
             EndDialog (hWnd, TRUE);
           } break;

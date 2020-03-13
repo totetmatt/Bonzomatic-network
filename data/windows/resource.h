@@ -20,6 +20,7 @@
 #define IDC_MULTI                       1006
 #define IDC_EDIT1                       1007
 #define IDC_RANDOMSEED                  1007
+#define IDC_FULLSCREEN3                 1008
 
 // Next default values for new objects
 // 

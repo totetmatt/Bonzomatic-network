@@ -250,12 +250,26 @@ namespace Renderer
     glfwWindowHint(GLFW_COCOA_GRAPHICS_SWITCHING, GLFW_FALSE);
 #endif
 
-    glfwWindowHint(GLFW_RESIZABLE, settings->windowMode == RENDERER_WINDOWMODE_FULLSCREEN ? GLFW_FALSE : GLFW_TRUE);
-
+    glfwWindowHint(GLFW_RESIZABLE, settings->windowMode == RENDERER_WINDOWMODE_WINDOWED ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_DECORATED, settings->windowMode == RENDERER_WINDOWMODE_BORDERLESS ? GLFW_FALSE : GLFW_TRUE);
+    
     // Prevent fullscreen window minimize on focus loss
     glfwWindowHint(GLFW_AUTO_ICONIFY, GL_FALSE);
 
     GLFWmonitor *monitor = settings->windowMode == RENDERER_WINDOWMODE_FULLSCREEN ? glfwGetPrimaryMonitor() : NULL;
+
+    if (settings->windowMode == RENDERER_WINDOWMODE_BORDERLESS)
+    {
+      const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+      
+      // On my computer with two monitors, putting the exact width/height give strange behaviors
+      settings->nWidth = mode->width-1;
+      settings->nHeight = mode->height-1;
+      nWidth = settings->nWidth;
+      nHeight = settings->nHeight;
+
+      glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);      
+    }
 
     mWindow = glfwCreateWindow(nWidth, nHeight, "BONZOMATIC - GLFW edition", monitor, NULL);
     if (!mWindow)

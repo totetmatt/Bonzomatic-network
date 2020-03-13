@@ -115,6 +115,8 @@ int main(int argc, const char *argv[])
       settings.nHeight = options.get<jsonxx::Object>("window").get<jsonxx::Number>("height");
     if (options.get<jsonxx::Object>("window").has<jsonxx::Boolean>("fullscreen"))
       settings.windowMode = options.get<jsonxx::Object>("window").get<jsonxx::Boolean>("fullscreen") ? RENDERER_WINDOWMODE_FULLSCREEN : RENDERER_WINDOWMODE_WINDOWED;
+    if (options.get<jsonxx::Object>("window").has<jsonxx::Boolean>("borderlessfullscreen") && options.get<jsonxx::Object>("window").get<jsonxx::Boolean>("borderlessfullscreen"))
+      settings.windowMode = RENDERER_WINDOWMODE_BORDERLESS;
   }
   if (!Renderer::OpenSetupDialog( &settings ))
     return -1;
@@ -278,18 +280,20 @@ int main(int argc, const char *argv[])
     {
       sPostExitCmd = options.get<jsonxx::String>("postExitCmd");
     }
-    Capture::LoadSettings( options );
+    //Capture::LoadSettings( options );
   }
   if (!editorOptions.sFontPath.size())
   {
     printf("Couldn't find any of the default fonts. Please specify one in config.json\n");
     return -1;
   }
+  /*
   if (!Capture::Open(settings))
   {
     printf("Initializing capture system failed!\n");
     return 0;
   }
+  */
 
   Renderer::Texture * texFFT = Renderer::Create1DR32Texture( FFT_SIZE );
   Renderer::Texture * texFFTSmoothed = Renderer::Create1DR32Texture( FFT_SIZE );
@@ -553,7 +557,8 @@ int main(int argc, const char *argv[])
 
     Renderer::EndFrame();
 
-    Capture::CaptureFrame();
+    // TMP: this crash when using NDI
+    //Capture::CaptureFrame();
 
     if (newShader)
     {
