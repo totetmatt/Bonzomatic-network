@@ -110,6 +110,9 @@ void ShaderEditor::Initialise()
   WndProc(SCI_SETFOLDMARGINHICOLOUR, 1, BACKGROUND( 0x1A1A1A ));
   WndProc(SCI_SETSELBACK,            1, theme.selection);
 
+  // add ctrl-z on French Keyboards
+  WndProc(SCI_ASSIGNCMDKEY, Platform::LongFromTwoShorts('W',SCMOD_CTRL), SCI_UNDO);
+
   SetReadOnly(false);
 
   for (int i = 0 ; i < NB_FOLDER_STATE ; i++)
