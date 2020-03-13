@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <string.h>
+#include <string>
 #include <assert.h>
 #include <vector>
 
@@ -35,9 +35,14 @@ public:
 		memset(&piProcessInfo, 0, sizeof(piProcessInfo));
 		siStartupInfo.cb = sizeof(siStartupInfo);
 
+		std::string ShaderName = " shader=netshad_" + std::to_string(InstanceIndex) + ".glsl";
+
+		char* ShaderPath = new char[ShaderName.size() + 1];
+		strncpy_s(ShaderPath, (ShaderName.size() + 1), ShaderName.c_str(), (ShaderName.size()+1));
+
 		DWORD dwExitCode = 0;
 		if (CreateProcessA("Bonzomatic.exe",
-			NULL, 0, 0, false,
+			ShaderPath, 0, 0, false,
 			CREATE_DEFAULT_ERROR_MODE, 0, 0,
 			&siStartupInfo, &piProcessInfo) != false)
 		{
