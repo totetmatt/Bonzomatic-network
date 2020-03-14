@@ -10,6 +10,9 @@ namespace Capture
   {
     return true;
   }
+  void CaptureResize(int width, int height)
+  {
+  }
   void CaptureFrame()
   {
   }
