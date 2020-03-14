@@ -120,7 +120,7 @@ int main(int argc, const char *argv[])
 
   std::string shaderFileName = Renderer::defaultShaderFilename;
   if (CmdHasOption(argc, argv, "shader", &shaderFileName)) {
-    printf("Loading Shader: %s", shaderFileName.c_str());
+    printf("Loading Shader: %s \n", shaderFileName.c_str());
   }
 
   RENDERER_SETTINGS settings;
@@ -307,21 +307,19 @@ int main(int argc, const char *argv[])
     {
       sPostExitCmd = options.get<jsonxx::String>("postExitCmd");
     }
-    //Capture::LoadSettings( options );
+    Capture::LoadSettings( options );
   }
   if (!editorOptions.sFontPath.size())
   {
     printf("Couldn't find any of the default fonts. Please specify one in config.json\n");
     return -1;
   }
-  /*
   if (!Capture::Open(settings))
   {
     printf("Initializing capture system failed!\n");
     return 0;
   }
-  */
-
+  
   Renderer::Texture * texFFT = Renderer::Create1DR32Texture( FFT_SIZE );
   Renderer::Texture * texFFTSmoothed = Renderer::Create1DR32Texture( FFT_SIZE );
   Renderer::Texture * texFFTIntegrated = Renderer::Create1DR32Texture( FFT_SIZE );
@@ -529,11 +527,9 @@ int main(int argc, const char *argv[])
 
     if (needEditorUpdate || Renderer::nSizeChanged)
     {
-      Renderer::nSizeChanged = false;
       int TexPreviewOffset = bTexPreviewVisible ? nTexPreviewWidth + nMargin : 0;
       mShaderEditor.SetPosition(Scintilla::PRectangle(nMargin, nMargin, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin * 2 - nDebugOutputHeight));
       mDebugOutput.SetPosition(Scintilla::PRectangle(nMargin, Renderer::nHeight - nMargin - nDebugOutputHeight, Renderer::nWidth - nMargin - TexPreviewOffset, Renderer::nHeight - nMargin));
-
     }
     
     Renderer::StartTextRendering();
@@ -584,8 +580,12 @@ int main(int argc, const char *argv[])
 
     Renderer::EndFrame();
 
-    // TMP: this crash when using NDI
-    //Capture::CaptureFrame();
+    if (Renderer::nSizeChanged)
+    {
+      Capture::CaptureResize(Renderer::nWidth, Renderer::nHeight);
+    }
+
+    Capture::CaptureFrame();
 
     if (newShader)
     {
@@ -602,6 +602,8 @@ int main(int argc, const char *argv[])
         mDebugOutput.SetText( "Unable to save shader! Your work will be lost when you quit!" );
       }
     }
+
+    Renderer::nSizeChanged = false;
   }
 
 

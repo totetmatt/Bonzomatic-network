@@ -191,6 +191,7 @@ namespace Renderer
   int readIndex = 0;
   int writeIndex = 1;
   GLuint pbo[2];
+  int pboSize = 0;
 
   static void error_callback(int error, const char *description) {
     switch (error) {
@@ -210,6 +211,8 @@ namespace Renderer
   void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
   void window_size_callback(GLFWwindow* window, int width, int height);
+
+  void AllocateBuffers();
 
   bool Open( RENDERER_SETTINGS * settings )
   {
@@ -447,12 +450,7 @@ namespace Renderer
 
     //create PBOs to hold the data. this allocates memory for them too
     glGenBuffers(2, pbo);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[0]);
-    glBufferData(GL_PIXEL_PACK_BUFFER, nWidth * nHeight * sizeof(unsigned int), NULL, GL_STREAM_READ);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[1]);
-    glBufferData(GL_PIXEL_PACK_BUFFER, nWidth * nHeight * sizeof(unsigned int), NULL, GL_STREAM_READ);
-    //unbind buffers for now
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    AllocateBuffers();
 
     glViewport(0, 0, nWidth, nHeight);
     
@@ -591,9 +589,26 @@ namespace Renderer
 
   void window_size_callback(GLFWwindow* window, int width, int height)
   {
+    // Avoid possible division by 0
+    width = max(width, 1);
+    height = max(height, 1);
     nWidth = width;
     nHeight = height;
     nSizeChanged = true;
+    if (pboSize < nWidth*nHeight) {
+      AllocateBuffers();
+    }
+  }
+
+  void AllocateBuffers()
+  {
+    pboSize = nWidth * nHeight;
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[0]);
+    glBufferData(GL_PIXEL_PACK_BUFFER, pboSize * sizeof(unsigned int), NULL, GL_STREAM_READ);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[1]);
+    glBufferData(GL_PIXEL_PACK_BUFFER, pboSize * sizeof(unsigned int), NULL, GL_STREAM_READ);
+    //unbind buffers for now
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
   }
 
   void StartFrame()

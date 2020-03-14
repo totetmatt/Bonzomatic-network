@@ -78,6 +78,16 @@ namespace Capture
     }
     return true;
   }
+  void CaptureResize(int width, int height)
+  {
+    pNDIFrame.xres = width;
+    pNDIFrame.yres = height;
+    pNDIFrame.picture_aspect_ratio = width/height;
+    pBuffer[0] = new unsigned int[width * height * 4];
+    pBuffer[1] = new unsigned int[width * height * 4];
+    pNDIFrame.p_data = NULL;
+    pNDIFrame.line_stride_in_bytes = width * 4;
+  }
   void CaptureFrame()
   {
     if (pBuffer[0] && pBuffer[1])
