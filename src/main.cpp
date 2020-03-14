@@ -572,18 +572,19 @@ int main(int argc, const char *argv[])
       Misc::GetKeymapName(szLayout);
       std::string sHelp = "F2 - toggle texture preview   F5 or Ctrl-R - recompile shader   F11 - hide GUI   Current keymap: ";
       sHelp += szLayout;
-      surface->DrawTextNoClip( Scintilla::PRectangle(20,Renderer::nHeight - 20,100,Renderer::nHeight), *mShaderEditor.GetTextFont(), Renderer::nHeight - 5.0, sHelp.c_str(), (int)sHelp.length(), 0x80FFFFFF, 0x00000000);
+      surface->DrawTextNoClip(Scintilla::PRectangle(20, Renderer::nHeight - 20, 100, Renderer::nHeight), *mShaderEditor.GetTextFont(), Renderer::nHeight - 5.0, sHelp.c_str(), (int)sHelp.length(), 0x80FFFFFF, 0x00000000);
     }
 
 
     Renderer::EndTextRendering();
 
-    Renderer::EndFrame();
-
     if (Renderer::nSizeChanged)
     {
       Capture::CaptureResize(Renderer::nWidth, Renderer::nHeight);
     }
+    Renderer::nSizeChanged = false;
+
+    Renderer::EndFrame();
 
     Capture::CaptureFrame();
 
@@ -603,7 +604,6 @@ int main(int argc, const char *argv[])
       }
     }
 
-    Renderer::nSizeChanged = false;
   }
 
 
