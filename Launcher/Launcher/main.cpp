@@ -37,12 +37,13 @@ public:
 
 		std::string ShaderName = " shader=netshad_" + std::to_string(InstanceIndex) + ".glsl";
 
-		char* ShaderPath = new char[ShaderName.size() + 1];
-		strncpy_s(ShaderPath, (ShaderName.size() + 1), ShaderName.c_str(), (ShaderName.size()+1));
+		std::string CommandLine = std::string(" skipdialog") + ShaderName;
+		char* CommandString = new char[CommandLine.size() + 1];
+		strncpy_s(CommandString, (CommandLine.size() + 1), CommandLine.c_str(), (CommandLine.size()+1));
 
 		DWORD dwExitCode = 0;
 		if (CreateProcessA("Bonzomatic.exe",
-			ShaderPath, 0, 0, false,
+			CommandString, 0, 0, false,
 			CREATE_DEFAULT_ERROR_MODE, 0, 0,
 			&siStartupInfo, &piProcessInfo) != false)
 		{
