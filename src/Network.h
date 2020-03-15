@@ -5,8 +5,10 @@ namespace Network
   void OpenConnection();
   void BroadcastMessage(const char* msg);
   void SendShader(const char* msg);
-  bool HasRecievedShader();
-  std::string GetLastShader();
+  bool IsConnected();
+  bool IsGrabber();
+  bool HasNewShader();
+  std::string GetNewShader();
   void Tick();
   void Release();
 }

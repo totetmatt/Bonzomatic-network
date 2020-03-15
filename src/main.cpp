@@ -447,8 +447,12 @@ int main(int argc, const char *argv[])
     }
     Renderer::mouseEventBufferCount = 0;
 
-    if (Network::HasRecievedShader()) {
-      mShaderEditor.SetText(Network::GetLastShader().c_str());
+    if (Network::HasNewShader()) {
+      int PreviousTopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
+      mShaderEditor.SetText(Network::GetNewShader().c_str());
+      
+      mShaderEditor.WndProc(SCI_SETFIRSTVISIBLELINE, PreviousTopLine, 0);
+
       mShaderEditor.GetText(szShader, 65535);
       if (Renderer::ReloadShader(szShader, (int)strlen(szShader), szError, 4096))
       {
@@ -501,24 +505,26 @@ int main(int argc, const char *argv[])
       }
       else if (bShowGui)
       {
-        bool consumed = false;
-        if (Renderer::keyEventBuffer[i].scanCode)
+        if (!Network::IsConnected() || !Network::IsGrabber())
         {
-          mShaderEditor.KeyDown(
-            iswalpha(Renderer::keyEventBuffer[i].scanCode) ? towupper(Renderer::keyEventBuffer[i].scanCode) : Renderer::keyEventBuffer[i].scanCode,
-            Renderer::keyEventBuffer[i].shift,
-            Renderer::keyEventBuffer[i].ctrl,
-            Renderer::keyEventBuffer[i].alt,
-            &consumed);
+          bool consumed = false;
+          if (Renderer::keyEventBuffer[i].scanCode)
+          {
+            mShaderEditor.KeyDown(
+              iswalpha(Renderer::keyEventBuffer[i].scanCode) ? towupper(Renderer::keyEventBuffer[i].scanCode) : Renderer::keyEventBuffer[i].scanCode,
+              Renderer::keyEventBuffer[i].shift,
+              Renderer::keyEventBuffer[i].ctrl,
+              Renderer::keyEventBuffer[i].alt,
+              &consumed);
+          }
+          if (!consumed && Renderer::keyEventBuffer[i].character)
+          {
+            char    utf8[5] = { 0,0,0,0,0 };
+            wchar_t utf16[2] = { Renderer::keyEventBuffer[i].character, 0 };
+            Scintilla::UTF8FromUTF16(utf16, 1, utf8, 4 * sizeof(char));
+            mShaderEditor.AddCharUTF(utf8, (unsigned int)strlen(utf8));
+          }
         }
-        if (!consumed && Renderer::keyEventBuffer[i].character)
-        {
-          char    utf8[5] = {0,0,0,0,0};
-          wchar_t utf16[2] = {Renderer::keyEventBuffer[i].character, 0};
-          Scintilla::UTF8FromUTF16(utf16, 1, utf8, 4 * sizeof(char));
-          mShaderEditor.AddCharUTF(utf8, (unsigned int)strlen(utf8));
-        }
-
       }
     }
     Renderer::keyEventBufferCount = 0;
