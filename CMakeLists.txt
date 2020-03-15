@@ -166,6 +166,27 @@ if (WIN32 AND BONZOMATIC_NDI)
 endif ()
 
 ##############################################################################
+# MONGOOSE NETWORK
+set(BZC_PROJECT_INCLUDES ${BZC_PROJECT_INCLUDES} ${CMAKE_SOURCE_DIR}/external/mongoose)
+set(MONGOOSE_SRCS
+	${CMAKE_SOURCE_DIR}/external/mongoose/mongoose.c
+)
+add_library(bzc_mongoose STATIC ${MONGOOSE_SRCS})
+
+target_include_directories(bzc_mongoose PUBLIC ${CMAKE_SOURCE_DIR}/external/mongoose)
+if (MSVC)
+	target_compile_options(bzc_mongoose PUBLIC "$<$<CONFIG:Release>:/MT>")
+endif ()	
+set(BZC_PROJECT_LIBS ${BZC_PROJECT_LIBS} bzc_mongoose)
+#set(BZC_PROJECT_INCLUDES ${BZC_PROJECT_INCLUDES} ${CMAKE_SOURCE_DIR}/external/mongoose)
+
+set(BZC_NETWORK_SRCS
+${CMAKE_SOURCE_DIR}/src/Network/Network_Mongoose.cpp
+)
+
+source_group("Bonzomatic\\Network" FILES ${BZC_NETWORK_SRCS})
+
+##############################################################################
 # SCINTILLA
 set(SCINTILLA_SRCS
   ${CMAKE_SOURCE_DIR}/external/scintilla/lexers/LexA68k.cxx
@@ -409,7 +430,7 @@ else ()
 endif ()
 source_group("Bonzomatic\\Capture" FILES ${BZC_CAPTURE_SRCS})
 
-set(BZC_PROJECT_SRCS ${BZC_PROJECT_SRCS} ${BZC_PLATFORM_SRCS} ${BZC_RESOURCES_DATA} ${BZC_CAPTURE_SRCS})
+set(BZC_PROJECT_SRCS ${BZC_PROJECT_SRCS} ${BZC_PLATFORM_SRCS} ${BZC_RESOURCES_DATA} ${BZC_CAPTURE_SRCS} ${BZC_NETWORK_SRCS})
 
 set(BZC_PROJECT_INCLUDES ${CMAKE_SOURCE_DIR}/src ${BZC_PROJECT_INCLUDES})
 

@@ -18,6 +18,8 @@
 #include "UniConversion.h"
 #include "jsonxx.h"
 #include "Capture.h"
+#include "Network.h"
+#include "Cmdline.h"
 
 unsigned int ParseColor(const std::string& color) {
   if (color.size() < 6 || color.size() > 8) return 0xFFFFFFFF;
@@ -64,7 +66,7 @@ void ReplaceTokens( std::string &sDefShader, const char * sTokenBegin, const cha
   }
 }
 
-bool CmdHasOption(int argc, const char *argv[], const std::string Option, std::string* Parameter=NULL) {
+bool CmdHasOption(int argc, const char *argv[], const std::string Option, std::string* Parameter) {
   // start from 2nd param, first is exe name
   for (int i = 1; i < argc; ++i) {
     std::string strarg = argv[i];
@@ -73,7 +75,8 @@ bool CmdHasOption(int argc, const char *argv[], const std::string Option, std::s
       if (strarg == Option) {
         return true;
       }
-    } else {
+    }
+    else {
       std::string stroption = strarg.substr(0, foundEqual);
       if (stroption == Option) {
         if (Parameter) {
@@ -148,6 +151,10 @@ int main(int argc, const char *argv[])
     if (!Renderer::OpenSetupDialog( &settings ))
       return -1;
 #endif
+
+  Network::LoadSettings(options);
+  Network::CommandLine(argc, argv);
+  Network::OpenConnection();
 
   if (!Renderer::Open( &settings ))
   {
@@ -409,6 +416,9 @@ int main(int argc, const char *argv[])
   float oldtime = Timer::GetTime() / 1000.0;  
   while (!Renderer::WantsToQuit())
   {
+    // Networking
+    Network::Tick();
+    
     bool newShader = false;
     bool needEditorUpdate = false;
     float time = Timer::GetTime() / 1000.0; // seconds
@@ -437,12 +447,38 @@ int main(int argc, const char *argv[])
     }
     Renderer::mouseEventBufferCount = 0;
 
+    if (Network::HasRecievedShader()) {
+      mShaderEditor.SetText(Network::GetLastShader().c_str());
+      mShaderEditor.GetText(szShader, 65535);
+      if (Renderer::ReloadShader(szShader, (int)strlen(szShader), szError, 4096))
+      {
+        // Shader compilation successful; we set a flag to save if the frame render was successful
+        // (If there is a driver crash, don't save.)
+        newShader = true;
+      }
+      else
+      {
+        mDebugOutput.SetText(szError);
+      }
+    }
+
     for(int i=0; i<Renderer::keyEventBufferCount; i++)
     {
       if (Renderer::keyEventBuffer[i].scanCode == 283) // F2
       {
          bTexPreviewVisible = !bTexPreviewVisible;
          needEditorUpdate = true;
+      }
+      if (Renderer::keyEventBuffer[i].scanCode == 284) // F3
+      {
+        /*
+        //Network::SendShader(szShader);
+        const int MAX_SHADER_MESSAGE_SIZE = 400;
+        char msg[MAX_SHADER_MESSAGE_SIZE];
+        memset(msg, 0, MAX_SHADER_MESSAGE_SIZE);
+        mShaderEditor.GetText(msg, MAX_SHADER_MESSAGE_SIZE-1);
+        Network::SendShader(msg);
+        */
       }
       else if (Renderer::keyEventBuffer[i].scanCode == 286 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'r')) // F5
       {
@@ -457,6 +493,7 @@ int main(int argc, const char *argv[])
         {
           mDebugOutput.SetText( szError );
         }
+        Network::SendShader(szShader);
       }
       else if (Renderer::keyEventBuffer[i].scanCode == 292 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'f')) // F11 or Ctrl/Cmd-f  
       {
@@ -624,6 +661,8 @@ int main(int argc, const char *argv[])
 
   MIDI::Close();
   FFT::Close();
+
+  Network::Release();
 
   Renderer::ReleaseTexture( texFFT );
   Renderer::ReleaseTexture( texFFTSmoothed );
