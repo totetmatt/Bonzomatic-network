@@ -37,7 +37,7 @@ public:
 
 		std::string ShaderName = " shader=netshad_" + std::to_string(InstanceIndex) + ".glsl";
 
-		std::string CommandLine = std::string(" skipdialog") + ShaderName;
+		std::string CommandLine = std::string(" skipdialog") + ShaderName + std::string(" networkMode=receiver");
 		char* CommandString = new char[CommandLine.size() + 1];
 		strncpy_s(CommandString, (CommandLine.size() + 1), CommandLine.c_str(), (CommandLine.size()+1));
 
@@ -110,6 +110,7 @@ bool LaunchInstances()
 		else {
 			delete NewInstance;
 		}
+    Sleep(500);
 	}
 
 	int NumColumn = ceil(sqrt(NumberOfInstances));
