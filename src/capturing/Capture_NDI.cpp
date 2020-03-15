@@ -10,7 +10,7 @@ namespace Capture
   float fNDIFrameRate = 60.0;
   std::string sNDIIdentifier;
   bool bNDIProgressive = true;
-  bool bNDIEnabled = true;
+  bool bNDIEnabled = false;
   unsigned int * pBuffer[2] = { NULL, NULL };
   unsigned int nBufferIndex = 0;
   NDIlib_video_frame_v2_t pNDIFrame;
