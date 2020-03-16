@@ -1,4 +1,5 @@
 #include <Platform.h>
+#include "NetworkSettings.h"
 
 typedef enum {
   RENDERER_WINDOWMODE_WINDOWED = 0,
@@ -23,7 +24,7 @@ namespace Renderer
   extern int nHeight;
   extern bool nSizeChanged;
 
-  bool OpenSetupDialog( RENDERER_SETTINGS * settings );
+  bool OpenSetupDialog( RENDERER_SETTINGS * settings, NETWORK_SETTINGS* netSettings );
   bool Open( RENDERER_SETTINGS * settings );
   
   void StartFrame();

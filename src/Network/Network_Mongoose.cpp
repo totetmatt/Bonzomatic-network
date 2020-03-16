@@ -77,20 +77,17 @@ namespace Network
 	struct mg_mgr mgr;
 	struct mg_connection *nc;
   
-	void LoadSettings(jsonxx::Object & o)
+	void LoadSettings(jsonxx::Object & o, NETWORK_SETTINGS* DialogSettings)
 	{
 		if (o.has<jsonxx::Object>("network"))
 		{
 			jsonxx::Object netjson = o.get<jsonxx::Object>("network");
-			if (netjson.has<jsonxx::Boolean>("enabled"))
-				bNetworkEnabled = netjson.get<jsonxx::Boolean>("enabled");
-			if (netjson.has<jsonxx::String>("serverURL"))
-				ServerURL = netjson.get<jsonxx::String>("serverURL");
-			if (netjson.has<jsonxx::String>("networkMode"))
-				NetworkModeString = netjson.get<jsonxx::String>("networkMode");
 			if (netjson.has<jsonxx::Number>("udpateInterval"))
 				ShaderUpdateInterval = netjson.get<jsonxx::Number>("udpateInterval");
 		}
+    	bNetworkEnabled = DialogSettings->EnableNetwork;
+      ServerURL = DialogSettings->ServerURL;
+	    NetworkModeString = DialogSettings->NetworkModeString;
 	}
 
 	void CommandLine(int argc, const char *argv[]) {

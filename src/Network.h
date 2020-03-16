@@ -1,3 +1,4 @@
+#include "NetworkSettings.h"
 
 namespace Network
 {
@@ -7,8 +8,8 @@ namespace Network
 	int AnchorPosition;
 	bool NeedRecompile;
   };
-
-  void LoadSettings(jsonxx::Object & o);
+  
+  void LoadSettings(jsonxx::Object & o, NETWORK_SETTINGS* DialogSettings);
   void CommandLine(int argc, const char *argv[]);
   void OpenConnection();
   void BroadcastMessage(const char* msg);

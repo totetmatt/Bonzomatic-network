@@ -19,6 +19,7 @@
 #include "jsonxx.h"
 #include "Capture.h"
 #include "Network.h"
+#include "NetworkSettings.h"
 #include "Cmdline.h"
 
 unsigned int ParseColor(const std::string& color) {
@@ -128,7 +129,20 @@ int main(int argc, const char *argv[])
 
   RENDERER_SETTINGS settings;
   settings.bVsync = false;
-#ifdef _DEBUG
+
+  NETWORK_SETTINGS netSettings;
+  if (options.has<jsonxx::Object>("network"))
+		{
+			jsonxx::Object netjson = options.get<jsonxx::Object>("network");
+			if (netjson.has<jsonxx::Boolean>("enabled"))
+				netSettings.EnableNetwork = netjson.get<jsonxx::Boolean>("enabled");
+			if (netjson.has<jsonxx::String>("serverURL"))
+				netSettings.ServerURL = netjson.get<jsonxx::String>("serverURL");
+			if (netjson.has<jsonxx::String>("networkMode"))
+				netSettings.NetworkModeString = netjson.get<jsonxx::String>("networkMode");
+		}
+//#ifdef _DEBUG
+#if 0
   settings.nWidth = 1280;
   settings.nHeight = 720;
   settings.windowMode = RENDERER_WINDOWMODE_WINDOWED;
@@ -148,11 +162,14 @@ int main(int argc, const char *argv[])
       settings.windowMode = RENDERER_WINDOWMODE_BORDERLESS;
   }
   if(!SkipConfigDialog)
-    if (!Renderer::OpenSetupDialog( &settings ))
+  {
+    printf("Waiting Config dialog\n");
+    if (!Renderer::OpenSetupDialog( &settings, &netSettings ))
       return -1;
+  }
 #endif
 
-  Network::LoadSettings(options);
+  Network::LoadSettings(options, &netSettings);
   Network::CommandLine(argc, argv);
   Network::OpenConnection();
 

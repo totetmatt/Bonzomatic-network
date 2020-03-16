@@ -36,6 +36,7 @@ public:
   }
 
   RENDERER_SETTINGS * setup;
+  NETWORK_SETTINGS * network;
 
   int __cdecl ResolutionSort(const void * a, const void * b)
   {
@@ -94,15 +95,46 @@ public:
         }
 
         if (setup->windowMode == RENDERER_WINDOWMODE_FULLSCREEN) {
-          SendDlgItemMessage(hWnd, IDC_FULLSCREEN2, BM_SETCHECK, 1, 1);
+          SendDlgItemMessage(hWnd, IDC_FULL, BM_SETCHECK, 1, 1);
         } else if(setup->windowMode == RENDERER_WINDOWMODE_BORDERLESS) {
-          SendDlgItemMessage(hWnd, IDC_FULLSCREEN3, BM_SETCHECK, 1, 1);
+          SendDlgItemMessage(hWnd, IDC_BORDERLESS, BM_SETCHECK, 1, 1);
         } else {
-          SendDlgItemMessage(hWnd, IDC_FULLSCREEN, BM_SETCHECK, 1, 1);
+          SendDlgItemMessage(hWnd, IDC_WINDOWED, BM_SETCHECK, 1, 1);
         }
         if (setup->bVsync) {
           SendDlgItemMessage(hWnd, IDC_VSYNC, BM_SETCHECK, 1, 1);
         }
+
+        if (!network->EnableNetwork) {
+          SendDlgItemMessage(hWnd, IDC_OFFLINE, BM_SETCHECK, 1, 1);
+        } else if(network->NetworkModeString == "sender") {
+          SendDlgItemMessage(hWnd, IDC_SENDER, BM_SETCHECK, 1, 1);
+        } else {
+          SendDlgItemMessage(hWnd, IDC_GRABBER, BM_SETCHECK, 1, 1);
+        }
+        
+        std::string ServerName;
+        std::string RoomName;
+        std::string NickName;
+
+        std::size_t LastPart = network->ServerURL.rfind('/');
+        if(LastPart == std::string::npos || LastPart<=7) {
+          ServerName = network->ServerURL;
+        } else {
+          std::size_t SecondPart = network->ServerURL.rfind('/', LastPart-1);
+          if(SecondPart == std::string::npos || SecondPart<=7) {
+            ServerName = network->ServerURL.substr(0,LastPart);
+            RoomName = network->ServerURL.substr(LastPart+1);
+          } else {
+            ServerName = network->ServerURL.substr(0,SecondPart);
+            RoomName = network->ServerURL.substr(SecondPart+1, LastPart-SecondPart-1);
+            NickName = network->ServerURL.substr(LastPart+1);
+          }
+        }
+        
+        SetDlgItemText(hWnd, IDC_SERVER, ServerName.c_str());
+        SetDlgItemText(hWnd, IDC_ROOM, RoomName.c_str());
+        SetDlgItemText(hWnd, IDC_NICK, NickName.c_str());
 
         return true;
       } break;
@@ -116,14 +148,38 @@ public:
             setup->nWidth  = gaResolutions[ SendDlgItemMessage(hWnd, IDC_RESOLUTION, CB_GETCURSEL, 0, 0) ].nWidth;
             setup->nHeight = gaResolutions[ SendDlgItemMessage(hWnd, IDC_RESOLUTION, CB_GETCURSEL, 0, 0) ].nHeight;
             setup->windowMode = RENDERER_WINDOWMODE_WINDOWED;
-            if (SendDlgItemMessage(hWnd, IDC_FULLSCREEN2, BM_GETCHECK, 0, 0)) {
+            if (SendDlgItemMessage(hWnd, IDC_FULL, BM_GETCHECK, 0, 0)) {
               setup->windowMode = RENDERER_WINDOWMODE_FULLSCREEN;
             }
-            if (SendDlgItemMessage(hWnd, IDC_FULLSCREEN3, BM_GETCHECK, 0, 0)) {
+            if (SendDlgItemMessage(hWnd, IDC_BORDERLESS, BM_GETCHECK, 0, 0)) {
               setup->windowMode = RENDERER_WINDOWMODE_BORDERLESS;
             }
 
             setup->bVsync = SendDlgItemMessage(hWnd, IDC_VSYNC, BM_GETCHECK , 0, 0) > 0;
+
+            // ACCEPT
+            if (SendDlgItemMessage(hWnd, IDC_OFFLINE, BM_GETCHECK, 0, 0)) {
+              network->EnableNetwork = false;
+            }
+            network->NetworkModeString = "grabber";
+            if (SendDlgItemMessage(hWnd, IDC_SENDER, BM_GETCHECK, 0, 0)) {
+              network->NetworkModeString = "sender";
+            }
+
+            int ServerLen = SendDlgItemMessage(hWnd, IDC_SERVER, WM_GETTEXTLENGTH, 0, 0);
+            char ServerName[512];
+            GetDlgItemText(hWnd, IDC_SERVER, ServerName, min(ServerLen+1,511));
+
+            int RoomLen = SendDlgItemMessage(hWnd, IDC_ROOM, WM_GETTEXTLENGTH, 0, 0);
+            char RoomName[512];
+            GetDlgItemText(hWnd, IDC_ROOM, RoomName, min(RoomLen+1,511));
+
+            int NickLen = SendDlgItemMessage(hWnd, IDC_NICK, WM_GETTEXTLENGTH, 0, 0);
+            char NickName[512];
+            GetDlgItemText(hWnd, IDC_NICK, NickName, min(NickLen+1,511));
+
+            network->ServerURL = std::string(ServerName) + "/" + RoomName + "/" + NickName;
+
             EndDialog (hWnd, TRUE);
           } break;
         case IDCANCEL: 
@@ -149,9 +205,10 @@ INT_PTR CALLBACK DlgFunc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
   return pGlobal->DialogProcedure(hWnd,uMsg,wParam,lParam);
 }
 
-bool Renderer::OpenSetupDialog( RENDERER_SETTINGS * settings )
+bool Renderer::OpenSetupDialog( RENDERER_SETTINGS * settings, NETWORK_SETTINGS* netSettings )
 {
   CSetupDialog dlg;
   dlg.setup = settings;
+  dlg.network = netSettings;
   return dlg.Open( GetModuleHandle(NULL), NULL );
 }
