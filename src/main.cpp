@@ -440,16 +440,17 @@ int main(int argc, const char *argv[])
     {
       if (bShowGui)
       {
+		bool IsGrabber = Network::IsConnected() && Network::IsGrabber();
         switch (Renderer::mouseEventBuffer[i].eventType)
         {
           case Renderer::MOUSEEVENTTYPE_MOVE:
             mShaderEditor.ButtonMovePublic( Scintilla::Point( Renderer::mouseEventBuffer[i].x, Renderer::mouseEventBuffer[i].y ) );
             break;
           case Renderer::MOUSEEVENTTYPE_DOWN:
-            mShaderEditor.ButtonDown( Scintilla::Point( Renderer::mouseEventBuffer[i].x, Renderer::mouseEventBuffer[i].y ), time * 1000, false, false, false );
+            if(!IsGrabber) mShaderEditor.ButtonDown( Scintilla::Point( Renderer::mouseEventBuffer[i].x, Renderer::mouseEventBuffer[i].y ), time * 1000, false, false, false );
             break;
           case Renderer::MOUSEEVENTTYPE_UP:
-            mShaderEditor.ButtonUp( Scintilla::Point( Renderer::mouseEventBuffer[i].x, Renderer::mouseEventBuffer[i].y ), time * 1000, false );
+            if(!IsGrabber) mShaderEditor.ButtonUp( Scintilla::Point( Renderer::mouseEventBuffer[i].x, Renderer::mouseEventBuffer[i].y ), time * 1000, false );
             break;
           case Renderer::MOUSEEVENTTYPE_SCROLL:
             mShaderEditor.WndProc( SCI_LINESCROLL, (int)(-Renderer::mouseEventBuffer[i].x * fScrollXFactor), (int)(-Renderer::mouseEventBuffer[i].y * fScrollYFactor));
