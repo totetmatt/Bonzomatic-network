@@ -78,7 +78,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 		Room* TargetRoom = NULL;
 		for (int i = 0; i < Rooms.size(); ++i) {
 			if (Rooms[i]->RoomName == joinedRoom) {
-				printf("Found room %s\n", joinedRoom.c_str());
+				//printf("Found room %s\n", joinedRoom.c_str());
 				TargetRoom = Rooms[i];
 				break;
 	    }
@@ -120,7 +120,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 			for (auto it = begin(Users); it != end(Users); ++it) {
 				User* Cur = (*it);
 				if (Cur == nc->user_data) {
-					printf("Found %s\n", Cur->CurrentRoom->RoomName.c_str());
+					//printf("Found %s\n", Cur->CurrentRoom->RoomName.c_str());
 					Users.erase(it);
 					delete Cur;
 					break;
