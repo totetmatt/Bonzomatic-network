@@ -1,6 +1,20 @@
 #include <stdio.h>
+#include <string>
+#include <vector>
 
 #include "mongoose.h"
+
+struct Room {
+	std::string RoomName;
+};
+
+struct User {
+	Room* CurrentRoom;
+	std::string UserName;
+};
+
+std::vector<Room*> Rooms;
+std::vector<User*> Users;
 
 static sig_atomic_t s_signal_received = 0;
 static const char *s_http_port = "8000";
@@ -16,22 +30,32 @@ static int is_websocket(const struct mg_connection *nc) {
 }
 
 static void broadcast(struct mg_connection *nc, const struct mg_str msg) {
-	struct mg_connection *c;
-    
+	
+	User* CurUser = (User*)nc->user_data;
+  
+    /*
 	char addr[32];
 	mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr),
 		MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
 
 	printf("Message from %s\n", addr);
+    */
+
+	printf("%s | Message from %s\n", CurUser->CurrentRoom->RoomName.c_str(), CurUser->UserName.c_str());
 
   //char buf[500];
 	//snprintf(buf, sizeof(buf), "%s %.*s", addr, (int)msg.len, msg.p);
 	//snprintf(buf, sizeof(buf), "*s", msg.p);
 	//printf("%s\n", buf);
-	
+
+	struct mg_connection *c;
 	for (c = mg_next(nc->mgr, NULL); c != NULL; c = mg_next(nc->mgr, c)) {
 		if (c == nc) continue; /* Don't send to the sender. */
-		mg_send_websocket_frame(c, WEBSOCKET_OP_TEXT, msg.p, msg.len);
+		User* TargetUser = (User*)c->user_data;
+    // Only send if in the same room
+		if (TargetUser && TargetUser->CurrentRoom == CurUser->CurrentRoom) {
+			mg_send_websocket_frame(c, WEBSOCKET_OP_TEXT, msg.p, msg.len);
+	  }
 	}
 }
 
@@ -41,8 +65,38 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 		/* New websocket connection. Tell everybody. */
 		//broadcast(nc, mg_mk_str("++ joined"));
 		char addr[32];
-		mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr),MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
-		printf("%s ++ joined\n", addr);
+		mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT | MG_SOCK_STRINGIFY_REMOTE);
+
+		struct http_message *hm = (struct http_message *) ev_data;
+		std::string joinedRoom;
+		if (hm->uri.len == 0 || hm->uri.p[0] != '/') {
+			joinedRoom = "DefaultRoom";
+		} else {
+		  joinedRoom.append(hm->uri.p, hm->uri.len);
+	  }
+		
+		Room* TargetRoom = NULL;
+		for (int i = 0; i < Rooms.size(); ++i) {
+			if (Rooms[i]->RoomName == joinedRoom) {
+				printf("Found room %s\n", joinedRoom.c_str());
+				TargetRoom = Rooms[i];
+				break;
+	    }
+	  }
+		if (!TargetRoom) { // no room found
+			Room* NewRoom = new Room();
+			NewRoom->RoomName = joinedRoom;
+			Rooms.push_back(NewRoom);
+			TargetRoom = NewRoom;
+	  }
+		
+		User* NewUser = new User();
+		NewUser->UserName = addr;
+		NewUser->CurrentRoom = TargetRoom;
+		Users.push_back(NewUser);
+
+		nc->user_data = NewUser;
+		printf("%s ++ joined %s\n", addr, joinedRoom.c_str());
 		break;
 	}
 	case MG_EV_WEBSOCKET_FRAME: {
@@ -62,6 +116,17 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 			//broadcast(nc, mg_mk_str("-- left"));
 			char addr[32];
 			mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
+
+			for (auto it = begin(Users); it != end(Users); ++it) {
+				User* Cur = (*it);
+				if (Cur == nc->user_data) {
+					printf("Found %s\n", Cur->CurrentRoom->RoomName.c_str());
+					Users.erase(it);
+					delete Cur;
+					break;
+		    }
+			}
+
 			printf("%s -- left\n", addr);
 		}
 		break;
@@ -100,6 +165,12 @@ int main(int argc, const char *argv[])
 	while (true) {
 		Sleep(30);
 	}
+
+  // Clean
+	for (auto Cur : Rooms) {
+		delete Cur;
+	}
+	Rooms.clear();
 
 	return 0;
 }
