@@ -416,14 +416,26 @@ int main(int argc, const char *argv[])
   float oldtime = Timer::GetTime() / 1000.0;  
   while (!Renderer::WantsToQuit())
   {
-    // Networking
-    Network::Tick();
     
     bool newShader = false;
     bool needEditorUpdate = false;
     float time = Timer::GetTime() / 1000.0; // seconds
     Renderer::StartFrame();
 
+    // Networking
+    Network::Tick();
+    
+    if (Network::IsShaderNeedUpdate(time))
+    {
+      mShaderEditor.GetText(szShader, 65535);
+	  Network::ShaderMessage NewMessage;
+	  NewMessage.Code = std::string(szShader);
+	  NewMessage.NeedRecompile = false;
+	  NewMessage.CaretPosition = mShaderEditor.WndProc(SCI_GETCURRENTPOS, 0, 0);
+	  NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
+      Network::SendShader(time, NewMessage);
+	}
+    
     for(int i=0; i<Renderer::mouseEventBufferCount; i++)
     {
       if (bShowGui)
@@ -448,22 +460,27 @@ int main(int argc, const char *argv[])
     Renderer::mouseEventBufferCount = 0;
 
     if (Network::HasNewShader()) {
-      int PreviousTopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
-      mShaderEditor.SetText(Network::GetNewShader().c_str());
-      
-      mShaderEditor.WndProc(SCI_SETFIRSTVISIBLELINE, PreviousTopLine, 0);
-
-      mShaderEditor.GetText(szShader, 65535);
-      if (Renderer::ReloadShader(szShader, (int)strlen(szShader), szError, 4096))
-      {
-        // Shader compilation successful; we set a flag to save if the frame render was successful
-        // (If there is a driver crash, don't save.)
-        newShader = true;
-      }
-      else
-      {
-        mDebugOutput.SetText(szError);
-      }
+		Network::ShaderMessage NewMessage;
+		if(Network::GetNewShader(NewMessage)) {
+			int PreviousTopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
+			mShaderEditor.SetText(NewMessage.Code.c_str());
+			mShaderEditor.WndProc(SCI_SETCURRENTPOS, NewMessage.CaretPosition, 0);
+			mShaderEditor.WndProc(SCI_SETANCHOR, NewMessage.AnchorPosition, 0);
+			mShaderEditor.WndProc(SCI_SETFIRSTVISIBLELINE, PreviousTopLine, 0);
+			if(NewMessage.NeedRecompile) {
+				mShaderEditor.GetText(szShader, 65535);
+				if (Renderer::ReloadShader(szShader, (int)strlen(szShader), szError, 4096))
+				{
+					// Shader compilation successful; we set a flag to save if the frame render was successful
+					// (If there is a driver crash, don't save.)
+					newShader = true;
+				}
+				else
+				{
+					mDebugOutput.SetText(szError);
+				}
+			}
+		}
     }
 
     for(int i=0; i<Renderer::keyEventBufferCount; i++)
@@ -473,20 +490,16 @@ int main(int argc, const char *argv[])
          bTexPreviewVisible = !bTexPreviewVisible;
          needEditorUpdate = true;
       }
-      if (Renderer::keyEventBuffer[i].scanCode == 284) // F3
-      {
-        /*
-        //Network::SendShader(szShader);
-        const int MAX_SHADER_MESSAGE_SIZE = 400;
-        char msg[MAX_SHADER_MESSAGE_SIZE];
-        memset(msg, 0, MAX_SHADER_MESSAGE_SIZE);
-        mShaderEditor.GetText(msg, MAX_SHADER_MESSAGE_SIZE-1);
-        Network::SendShader(msg);
-        */
-      }
       else if (Renderer::keyEventBuffer[i].scanCode == 286 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'r')) // F5
       {
         mShaderEditor.GetText(szShader,65535);
+		Network::ShaderMessage NewMessage;
+		NewMessage.Code = std::string(szShader);
+		NewMessage.NeedRecompile = true;
+		NewMessage.CaretPosition = mShaderEditor.WndProc(SCI_GETCURRENTPOS, 0, 0);
+		NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
+		Network::SendShader(time, NewMessage);
+
         if (Renderer::ReloadShader( szShader, (int)strlen(szShader), szError, 4096 ))
         {
           // Shader compilation successful; we set a flag to save if the frame render was successful
@@ -497,7 +510,6 @@ int main(int argc, const char *argv[])
         {
           mDebugOutput.SetText( szError );
         }
-        Network::SendShader(szShader);
       }
       else if (Renderer::keyEventBuffer[i].scanCode == 292 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'f')) // F11 or Ctrl/Cmd-f  
       {

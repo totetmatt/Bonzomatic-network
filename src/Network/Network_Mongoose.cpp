@@ -3,14 +3,18 @@
 #include "mongoose.h"
 #include "../Cmdline.h"
 
+#include "Network.h"
+
 namespace Network
 {
 	static int s_done = 0;
 	static int s_is_connected = 0;
 
-	bool NewShaderGrabber = false;
-	std::string LastGrabberShader;
-
+	bool NewShaderToGrab = false;
+	jsonxx::Object LastGrabberShader;
+	float LastSendTime = 0.0f;
+	float ShaderUpdateInterval = 0.3f;
+  
 	enum NetMode {
 		NetMode_Sender,
 		NetMode_Grabber
@@ -28,45 +32,45 @@ namespace Network
 		(void)nc;
 
 		switch (ev) {
-		case MG_EV_CONNECT: {
-			int status = *((int *)ev_data);
-			if (status != 0) {
-				printf("-- Connection error: %d\n", status);
+			case MG_EV_CONNECT: {
+				int status = *((int *)ev_data);
+				if (status != 0) {
+					printf("-- Connection error: %d\n", status);
+				}
+				break;
 			}
-			break;
-		}
-		case MG_EV_WEBSOCKET_HANDSHAKE_DONE: {
-			struct http_message *hm = (struct http_message *) ev_data;
-			if (hm->resp_code == 101) {
-				printf("-- Connected\n");
-				s_is_connected = 1;
-				bNetworkLaunched = true;
+			case MG_EV_WEBSOCKET_HANDSHAKE_DONE: {
+				struct http_message *hm = (struct http_message *) ev_data;
+				if (hm->resp_code == 101) {
+					printf("-- Connected\n");
+					s_is_connected = 1;
+					bNetworkLaunched = true;
+				}
+				else {
+					printf("-- Connection failed! HTTP code %d\n", hm->resp_code);
+					/* Connection will be closed after this. */
+				}
+				break;
 			}
-			else {
-				printf("-- Connection failed! HTTP code %d\n", hm->resp_code);
-				/* Connection will be closed after this. */
+			case MG_EV_POLL: {
+				//char msg[500];
+				//strcpy(msg, "Bonjour de loin");
+				//mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, strlen(msg));
+				break;
 			}
-			break;
-		}
-		case MG_EV_POLL: {
-			//char msg[500];
-			//strcpy(msg, "Bonjour de loin");
-			//mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, strlen(msg));
-			break;
-		}
-		case MG_EV_WEBSOCKET_FRAME: {
-			struct websocket_message *wm = (struct websocket_message *) ev_data;
-		printf("Grabbed message %d.\n", (int)wm->size);
-		RecieveShader(wm->size, wm->data);
-			
-			break;
-		}
-		case MG_EV_CLOSE: {
-			if (s_is_connected) printf("-- Disconnected\n");
-			s_done = 1;
-			bNetworkLaunched = false;
-			break;
-		}
+			case MG_EV_WEBSOCKET_FRAME: {
+				struct websocket_message *wm = (struct websocket_message *) ev_data;
+				printf("Grabbed message %d.\n", (int)wm->size);
+				RecieveShader(wm->size, wm->data);
+				// TODO: clean the buffer with mbuf_remove(); ? or maybe not needed with websocket ...
+				break;
+			}
+			case MG_EV_CLOSE: {
+				if (s_is_connected) printf("-- Disconnected\n");
+				s_done = 1;
+				bNetworkLaunched = false;
+				break;
+			}
 		}
 	}
 
@@ -84,6 +88,8 @@ namespace Network
 				ServerURL = netjson.get<jsonxx::String>("serverURL");
 			if (netjson.has<jsonxx::String>("networkMode"))
 				NetworkModeString = netjson.get<jsonxx::String>("networkMode");
+			if (netjson.has<jsonxx::Number>("udpateInterval"))
+				ShaderUpdateInterval = netjson.get<jsonxx::Number>("udpateInterval");
 		}
 	}
 
@@ -129,11 +135,29 @@ namespace Network
 		mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, strlen(msg)+1);
 	}
 
-	void SendShader(const char* msg) {
+	void SendShader(float time, ShaderMessage NewMessage) {
 		if (!bNetworkLaunched) return;
 		if (NetworkMode != NetMode_Sender) return;
 
-		mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, strlen(msg)+1);
+		using namespace jsonxx;
+
+		jsonxx::Object Data;
+		Data << "Code" << std::string(NewMessage.Code);
+		Data << "Compile" << NewMessage.NeedRecompile;
+		Data << "Caret" << NewMessage.CaretPosition;
+		Data << "Anchor" << NewMessage.AnchorPosition;
+
+		jsonxx::Object Message = Object("Data", Data);
+		std::string TextJson = Message.json();
+		//printf("JSON: %s\n", TextJson.c_str());
+		mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, TextJson.c_str(), TextJson.length()+1);
+		LastSendTime = time;
+	}
+
+	bool IsShaderNeedUpdate(float Time) {
+		if (!bNetworkLaunched) return false;
+		if (NetworkMode != NetMode_Sender) return false;
+		return (Time - LastSendTime >= ShaderUpdateInterval);
 	}
 
 	void RecieveShader(size_t size, unsigned char *data) {
@@ -142,9 +166,31 @@ namespace Network
 		// - verify size
 		// - non-ascii symbols ?
 		// - asynchronous update ?
-		data[size-1] = '\0';
-		LastGrabberShader = std::string((char*)data);
-		NewShaderGrabber = true;
+		data[size-1] = '\0'; // ensure we do have an end to the char string after "size" bytes
+		std::string TextJson = std::string((char*)data);
+		//printf("JSON: %s\n", TextJson.c_str());
+		jsonxx::Object NewShader;
+		bool ErrorFound = false;
+		if (NewShader.parse(TextJson)) {
+			if(NewShader.has<jsonxx::Object>("Data")) {
+				jsonxx::Object Data = NewShader.get<jsonxx::Object>("Data");
+				if (!Data.has<jsonxx::String>("Code")) ErrorFound = true;
+				if (!Data.has<jsonxx::Number>("Caret")) ErrorFound = true;
+				if (!Data.has<jsonxx::Number>("Anchor")) ErrorFound = true;
+				if (!Data.has<jsonxx::Boolean>("Compile")) ErrorFound = true;
+			} else {
+				ErrorFound = true;
+			}
+		} else {
+			ErrorFound = true;
+		}
+		if(ErrorFound) {
+			printf("Invalid json formatting\n");
+			return;
+		}
+
+		LastGrabberShader = NewShader;
+		NewShaderToGrab = true;
 	}
 
 	bool IsConnected() {
@@ -157,13 +203,18 @@ namespace Network
 
 	bool HasNewShader() {
 		if (NetworkMode != NetMode_Grabber) return false;
-		return NewShaderGrabber;
+		return NewShaderToGrab;
 	}
 
-	std::string GetNewShader() {
-		if (NetworkMode != NetMode_Grabber) return std::string();
-		NewShaderGrabber = false;
-		return LastGrabberShader;
+	bool GetNewShader(ShaderMessage& OutShader) {
+		if (NetworkMode != NetMode_Grabber) return false;
+		NewShaderToGrab = false;
+		jsonxx::Object Data = LastGrabberShader.get<jsonxx::Object>("Data");
+		OutShader.Code = Data.get<jsonxx::String>("Code");
+		OutShader.CaretPosition = Data.get<jsonxx::Number>("Caret");
+		OutShader.AnchorPosition = Data.get<jsonxx::Number>("Anchor");
+		OutShader.NeedRecompile = Data.get<jsonxx::Boolean>("Compile");
+		return true;
 	}
 
 	void Tick() {
