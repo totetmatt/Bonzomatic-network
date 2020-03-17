@@ -18,8 +18,11 @@ namespace Network
   bool IsNetworkEnabled();
   bool IsConnected();
   bool IsGrabber();
+  bool IsLive(float time);
+  std::string GetNickName();
+  std::string GetModeString();
   bool HasNewShader();
-  bool GetNewShader(ShaderMessage& OutShader);
+  bool GetNewShader(float time, ShaderMessage& OutShader);
   void Tick();
   void Release();
 }

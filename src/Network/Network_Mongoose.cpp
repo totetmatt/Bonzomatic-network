@@ -14,6 +14,7 @@ namespace Network
   bool ShaderHasBeenCompiled = false;
 	jsonxx::Object LastGrabberShader;
 	float LastSendTime = 0.0f;
+  float LastShaderGrabTime = -1000.0f;
 	float ShaderUpdateInterval = 0.3f;
   
 	enum NetMode {
@@ -26,6 +27,10 @@ namespace Network
 	std::string ServerURL;
 	std::string NetworkModeString;
 	NetMode NetworkMode = NetMode::NetMode_Sender;
+
+  std::string ServerName;
+  std::string RoomName;
+  std::string NickName;
 
 	void RecieveShader(size_t size, unsigned char *data);
 
@@ -116,6 +121,8 @@ namespace Network
 			printf("Network Launching as sender\n");
 		}
 
+    Network_Break_URL(ServerURL, ServerName, RoomName, NickName);
+
 		mg_mgr_init(&mgr, NULL);
 
 		// ws://127.0.0.1:8000
@@ -203,12 +210,30 @@ namespace Network
 		return NetworkMode == NetMode_Grabber;
 	}
 
+  bool IsLive(float time) {
+    if(!bNetworkLaunched) return false;
+    if(NetworkMode == NetMode_Grabber) {
+      // if we got a shader less that 2s ago, we can say that there is someone sending
+      float MaxLiveStatusDuration = 2.0;
+      return (time-LastShaderGrabTime < MaxLiveStatusDuration);
+    }
+    return true;
+  }
+
+  std::string GetNickName() {
+    return NickName;
+  }
+
+  std::string GetModeString() {
+    return NetworkModeString;
+  }
+
 	bool HasNewShader() {
 		if (NetworkMode != NetMode_Grabber) return false;
 		return NewShaderToGrab;
 	}
 
-	bool GetNewShader(ShaderMessage& OutShader) {
+	bool GetNewShader(float time, ShaderMessage& OutShader) {
 		if (NetworkMode != NetMode_Grabber) return false;
 		NewShaderToGrab = false;
 		jsonxx::Object Data = LastGrabberShader.get<jsonxx::Object>("Data");
@@ -222,6 +247,7 @@ namespace Network
       ShaderHasBeenCompiled=true;
     }
 		OutShader.NeedRecompile = NeedRecompile;
+    LastShaderGrabTime = time;
 		return true;
 	}
 
