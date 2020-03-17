@@ -368,11 +368,12 @@ int main(int argc, const char *argv[])
     std::string RoomName;
     std::string NickName;
     Network_Break_URL(netSettings.ServerURL, ServerName, RoomName, NickName);
+    std::string Mode = Network::GetModeString();
     if(RoomName.length()>0) {
       if(NickName.length()>0) {
-        shaderFileName = RoomName + "_" + NickName + Renderer::defaultShaderExtention;
+        shaderFileName = Mode + "_" + RoomName + "_" + NickName + Renderer::defaultShaderExtention;
       } else {
-        shaderFileName = RoomName + Renderer::defaultShaderExtention;
+        shaderFileName = Mode + "_" + RoomName + Renderer::defaultShaderExtention;
       }
     }
   }
