@@ -10,11 +10,12 @@ namespace Network
   };
   
   void LoadSettings(jsonxx::Object & o, NETWORK_SETTINGS* DialogSettings);
-  void CommandLine(int argc, const char *argv[]);
+  void CommandLine(int argc, const char *argv[], NETWORK_SETTINGS* DialogSettings);
   void OpenConnection();
   void BroadcastMessage(const char* msg);
   void SendShader(float time, ShaderMessage NewMessage);
   bool IsShaderNeedUpdate(float Time);
+  bool IsNetworkEnabled();
   bool IsConnected();
   bool IsGrabber();
   bool HasNewShader();

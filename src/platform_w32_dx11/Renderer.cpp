@@ -105,6 +105,7 @@ const char * shaderBuiltin =
 namespace Renderer
 {
   const char * defaultShaderFilename = "shader.dx11.hlsl";
+  const char * defaultShaderExtention = ".dx11.hlsl";
   const char defaultShader[65536] =
     "{%textures:begin%}" // leave off \n here
     "Texture2D {%textures:name%};\n"

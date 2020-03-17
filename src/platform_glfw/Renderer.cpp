@@ -118,6 +118,7 @@ const char * shaderBuiltin =
 namespace Renderer
 {
   const char * defaultShaderFilename = "shader.glsl";
+  const char * defaultShaderExtention = ".glsl";
   const char defaultShader[65536] =
     "#version 410 core\n"
     "\n"

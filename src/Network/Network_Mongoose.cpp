@@ -11,6 +11,7 @@ namespace Network
 	static int s_is_connected = 0;
 
 	bool NewShaderToGrab = false;
+  bool ShaderHasBeenCompiled = false;
 	jsonxx::Object LastGrabberShader;
 	float LastSendTime = 0.0f;
 	float ShaderUpdateInterval = 0.3f;
@@ -90,14 +91,14 @@ namespace Network
 	    NetworkModeString = DialogSettings->NetworkModeString;
 	}
 
-	void CommandLine(int argc, const char *argv[]) {
-		if (CmdHasOption(argc, argv, "serverURL", &ServerURL)) {
-			bNetworkEnabled = true;
-			printf("Set server URL to %s \n", ServerURL.c_str());
+	void CommandLine(int argc, const char *argv[], NETWORK_SETTINGS* DialogSettings) {
+		if (CmdHasOption(argc, argv, "serverURL", &DialogSettings->ServerURL)) {
+			DialogSettings->EnableNetwork = true;
+			printf("Set server URL to %s \n", DialogSettings->ServerURL.c_str());
 		}
-		if (CmdHasOption(argc, argv, "networkMode", &NetworkModeString)) {
-			bNetworkEnabled = true;
-			printf("Set server mode to %s \n", NetworkModeString.c_str());
+		if (CmdHasOption(argc, argv, "networkMode", &DialogSettings->NetworkModeString)) {
+			DialogSettings->EnableNetwork = true;
+			printf("Set server mode to %s \n", DialogSettings->NetworkModeString.c_str());
 		}
 	}
 
@@ -190,6 +191,10 @@ namespace Network
 		NewShaderToGrab = true;
 	}
 
+  bool IsNetworkEnabled() {
+    return bNetworkEnabled;
+  }
+
 	bool IsConnected() {
 		return bNetworkLaunched;
 	}
@@ -210,7 +215,13 @@ namespace Network
 		OutShader.Code = Data.get<jsonxx::String>("Code");
 		OutShader.CaretPosition = Data.get<jsonxx::Number>("Caret");
 		OutShader.AnchorPosition = Data.get<jsonxx::Number>("Anchor");
-		OutShader.NeedRecompile = Data.get<jsonxx::Boolean>("Compile");
+    bool NeedRecompile = Data.get<jsonxx::Boolean>("Compile");
+    // If we grab a shader for the first time, we will try to recompile it, in case it's a valid one
+    if(!ShaderHasBeenCompiled) {
+      NeedRecompile=true;
+      ShaderHasBeenCompiled=true;
+    }
+		OutShader.NeedRecompile = NeedRecompile;
 		return true;
 	}
 

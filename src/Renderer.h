@@ -18,6 +18,7 @@ typedef struct
 namespace Renderer
 {
   extern const char * defaultShaderFilename;
+  extern const char * defaultShaderExtention;
   extern const char defaultShader[65536];
 
   extern int nWidth;

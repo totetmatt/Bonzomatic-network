@@ -90,6 +90,24 @@ bool CmdHasOption(int argc, const char *argv[], const std::string Option, std::s
   return false;
 }
 
+void Network_Break_URL(std::string ServerURL, std::string& ServerName, std::string& RoomName, std::string& NickName) {
+  
+    std::size_t LastPart = ServerURL.rfind('/');
+    if(LastPart == std::string::npos || LastPart<=7) {
+      ServerName = ServerURL;
+    } else {
+      std::size_t SecondPart = ServerURL.rfind('/', LastPart-1);
+      if(SecondPart == std::string::npos || SecondPart<=7) {
+        ServerName = ServerURL.substr(0,LastPart);
+        RoomName = ServerURL.substr(LastPart+1);
+      } else {
+        ServerName = ServerURL.substr(0,SecondPart);
+        RoomName = ServerURL.substr(SecondPart+1, LastPart-SecondPart-1);
+        NickName = ServerURL.substr(LastPart+1);
+      }
+    }
+}
+
 int main(int argc, const char *argv[])
 {
   Misc::PlatformStartup();
@@ -121,12 +139,7 @@ int main(int argc, const char *argv[])
   }
 
   bool SkipConfigDialog = CmdHasOption(argc, argv, "skipdialog");
-
-  std::string shaderFileName = Renderer::defaultShaderFilename;
-  if (CmdHasOption(argc, argv, "shader", &shaderFileName)) {
-    printf("Loading Shader: %s \n", shaderFileName.c_str());
-  }
-
+  
   RENDERER_SETTINGS settings;
   settings.bVsync = false;
 
@@ -168,9 +181,9 @@ int main(int argc, const char *argv[])
       return -1;
   }
 #endif
-
+  
+  Network::CommandLine(argc, argv, &netSettings);
   Network::LoadSettings(options, &netSettings);
-  Network::CommandLine(argc, argv);
   Network::OpenConnection();
 
   if (!Renderer::Open( &settings ))
@@ -347,6 +360,25 @@ int main(int argc, const char *argv[])
   Renderer::Texture * texFFT = Renderer::Create1DR32Texture( FFT_SIZE );
   Renderer::Texture * texFFTSmoothed = Renderer::Create1DR32Texture( FFT_SIZE );
   Renderer::Texture * texFFTIntegrated = Renderer::Create1DR32Texture( FFT_SIZE );
+
+  std::string shaderFileName = Renderer::defaultShaderFilename;
+  if (Network::IsNetworkEnabled())
+  {
+    std::string ServerName;
+    std::string RoomName;
+    std::string NickName;
+    Network_Break_URL(netSettings.ServerURL, ServerName, RoomName, NickName);
+    if(RoomName.length()>0) {
+      if(NickName.length()>0) {
+        shaderFileName = RoomName + "_" + NickName + Renderer::defaultShaderExtention;
+      } else {
+        shaderFileName = RoomName + Renderer::defaultShaderExtention;
+      }
+    }
+  }
+  if (CmdHasOption(argc, argv, "shader", &shaderFileName)) {
+    printf("Loading Shader: %s \n", shaderFileName.c_str());
+  }
 
   bool shaderInitSuccessful = false;
   char szShader[65535];

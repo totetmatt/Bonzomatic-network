@@ -116,21 +116,7 @@ public:
         std::string ServerName;
         std::string RoomName;
         std::string NickName;
-
-        std::size_t LastPart = network->ServerURL.rfind('/');
-        if(LastPart == std::string::npos || LastPart<=7) {
-          ServerName = network->ServerURL;
-        } else {
-          std::size_t SecondPart = network->ServerURL.rfind('/', LastPart-1);
-          if(SecondPart == std::string::npos || SecondPart<=7) {
-            ServerName = network->ServerURL.substr(0,LastPart);
-            RoomName = network->ServerURL.substr(LastPart+1);
-          } else {
-            ServerName = network->ServerURL.substr(0,SecondPart);
-            RoomName = network->ServerURL.substr(SecondPart+1, LastPart-SecondPart-1);
-            NickName = network->ServerURL.substr(LastPart+1);
-          }
-        }
+        Network_Break_URL(network->ServerURL, ServerName, RoomName, NickName);
         
         SetDlgItemText(hWnd, IDC_SERVER, ServerName.c_str());
         SetDlgItemText(hWnd, IDC_ROOM, RoomName.c_str());

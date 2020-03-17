@@ -109,6 +109,7 @@ const char * shaderBuiltin =
 namespace Renderer
 {
   const char * defaultShaderFilename = "shader.dx9.hlsl";
+  const char * defaultShaderExtention = ".dx9.hlsl";
   const char defaultShader[65536] = 
     "texture texTFFT; sampler1D texFFT = sampler_state { Texture = <texTFFT>; }; \n"
     "// towards 0.0 is bass / lower freq, towards 1.0 is higher / treble freq\n"
