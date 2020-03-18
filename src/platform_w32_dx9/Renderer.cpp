@@ -326,7 +326,7 @@ namespace Renderer
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
   }
 
-  bool InitWindow(RENDERER_SETTINGS * pSetup) 
+  bool InitWindow(RENDERER_SETTINGS * pSetup, std::string windowName) 
   {
     WNDCLASS WC;
 
@@ -350,7 +350,8 @@ namespace Renderer
     RECT wr={0,0,pSetup->nWidth,pSetup->nHeight};
     AdjustWindowRectEx(&wr, wStyle, FALSE, wExStyle);
 
-    hWnd = CreateWindowEx(wExStyle,_T("fwzwnd"),_T("BONZOMATIC - Direct3D 9.0c edition"),wStyle,
+    std::string FinalName = "BONZOMATIC - Direct3D 9.0c" + windowName;
+    hWnd = CreateWindowEx(wExStyle,_T("fwzwnd"),FinalName.c_str(),wStyle,
       (GetSystemMetrics(SM_CXSCREEN) - pSetup->nWidth )/2,
       (GetSystemMetrics(SM_CYSCREEN) - pSetup->nHeight)/2,
       wr.right-wr.left, wr.bottom-wr.top,
@@ -459,9 +460,9 @@ namespace Renderer
 
 #define GUIQUADVB_SIZE (128*6)
 
-  bool Open( RENDERER_SETTINGS * settings )
+  bool Open( RENDERER_SETTINGS * settings, std::string windowName )
   {
-    if (!InitWindow(settings))
+    if (!InitWindow(settings, windowName))
     {
       printf("[Renderer] InitWindow failed\n");
       return false;

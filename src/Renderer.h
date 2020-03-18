@@ -27,7 +27,7 @@ namespace Renderer
   extern bool nSizeChanged;
 
   bool OpenSetupDialog( RENDERER_SETTINGS * settings, NETWORK_SETTINGS* netSettings );
-  bool Open( RENDERER_SETTINGS * settings );
+  bool Open( RENDERER_SETTINGS * settings, std::string windowName );
   
   void StartFrame();
   void EndFrame();

@@ -191,7 +191,12 @@ int main(int argc, const char *argv[])
   Network::LoadSettings(options, &netSettings);
   Network::OpenConnection();
 
-  if (!Renderer::Open( &settings ))
+  std::string windowName = "";
+  if(Network::IsNetworkEnabled()) 
+  {
+    windowName = " " + Network::GetModeString() + " " + Network::GetNickName();
+  }
+  if (!Renderer::Open( &settings, windowName))
   {
     printf("Renderer::Open failed\n");
     return -1;

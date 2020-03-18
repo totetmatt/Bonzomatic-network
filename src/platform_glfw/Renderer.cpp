@@ -215,7 +215,7 @@ namespace Renderer
 
   void AllocateBuffers();
 
-  bool Open( RENDERER_SETTINGS * settings )
+  bool Open( RENDERER_SETTINGS * settings, std::string windowName )
   {
     glfwSetErrorCallback(error_callback);
     theShader = 0;
@@ -275,7 +275,8 @@ namespace Renderer
       glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);      
     }
 
-    mWindow = glfwCreateWindow(nWidth, nHeight, "BONZOMATIC - GLFW edition", monitor, NULL);
+    std::string finalWindowName = "BONZOMATIC - GLFW" + windowName;
+    mWindow = glfwCreateWindow(nWidth, nHeight, finalWindowName.c_str(), monitor, NULL);
     if (!mWindow)
     {
       printf("[GLFW] Window creation failed\n");
