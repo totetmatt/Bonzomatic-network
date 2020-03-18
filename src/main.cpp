@@ -159,20 +159,25 @@ int main(int argc, const char *argv[])
   settings.nWidth = 1280;
   settings.nHeight = 720;
   settings.windowMode = RENDERER_WINDOWMODE_WINDOWED;
+  settings.ResizeableWindow = true;
 #else
   settings.nWidth = 1920;
   settings.nHeight = 1080;
   settings.windowMode = RENDERER_WINDOWMODE_FULLSCREEN;
+  settings.ResizableWindow = false;
   if (options.has<jsonxx::Object>("window"))
   {
-    if (options.get<jsonxx::Object>("window").has<jsonxx::Number>("width"))
-      settings.nWidth = options.get<jsonxx::Object>("window").get<jsonxx::Number>("width");
-    if (options.get<jsonxx::Object>("window").has<jsonxx::Number>("height"))
-      settings.nHeight = options.get<jsonxx::Object>("window").get<jsonxx::Number>("height");
-    if (options.get<jsonxx::Object>("window").has<jsonxx::Boolean>("fullscreen"))
-      settings.windowMode = options.get<jsonxx::Object>("window").get<jsonxx::Boolean>("fullscreen") ? RENDERER_WINDOWMODE_FULLSCREEN : RENDERER_WINDOWMODE_WINDOWED;
-    if (options.get<jsonxx::Object>("window").has<jsonxx::Boolean>("borderlessfullscreen") && options.get<jsonxx::Object>("window").get<jsonxx::Boolean>("borderlessfullscreen"))
+    jsonxx::Object winjson = options.get<jsonxx::Object>("window");
+    if (winjson.has<jsonxx::Number>("width"))
+      settings.nWidth = winjson.get<jsonxx::Number>("width");
+    if (winjson.has<jsonxx::Number>("height"))
+      settings.nHeight = winjson.get<jsonxx::Number>("height");
+    if (winjson.has<jsonxx::Boolean>("fullscreen"))
+      settings.windowMode = winjson.get<jsonxx::Boolean>("fullscreen") ? RENDERER_WINDOWMODE_FULLSCREEN : RENDERER_WINDOWMODE_WINDOWED;
+    if (winjson.has<jsonxx::Boolean>("borderlessfullscreen") && winjson.get<jsonxx::Boolean>("borderlessfullscreen"))
       settings.windowMode = RENDERER_WINDOWMODE_BORDERLESS;
+    if (winjson.has<jsonxx::Boolean>("resizable"))
+      settings.ResizableWindow = winjson.get<jsonxx::Boolean>("resizable");
   }
   if(!SkipConfigDialog)
   {
@@ -726,20 +731,19 @@ int main(int argc, const char *argv[])
         } else {
           Status += " - Not Connected";
         }
-        std::string Mode = Network::GetModeString();
+        std::string Mode = Network::IsGrabber() ? "Grabbing from" : "Sending to";
 
         Scintilla::XYPOSITION WidthText = surface->WidthText(*mShaderEditor.GetTextFont(), Status.c_str(), (int)Status.length());
         Scintilla::XYPOSITION WidthMode = surface->WidthText(*mShaderEditor.GetTextFont(), Mode.c_str(), (int)Mode.length());
-        Scintilla::XYPOSITION RightPosition = Renderer::nWidth - 35 - TexPreviewOffset;
-        Scintilla::XYPOSITION BaseY = 10;
+        Scintilla::XYPOSITION RightPosition = Renderer::nWidth - 27 - TexPreviewOffset;
+        Scintilla::XYPOSITION BaseY = Renderer::nHeight - 22;
 
-        surface->RectangleDraw(Scintilla::PRectangle(RightPosition - WidthText - 10, BaseY, RightPosition + 25, BaseY+20), 0xFFFFFFFF, 0x80000000);
-        surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText, BaseY, RightPosition, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Status.c_str(), (int)Status.length(), 0xFFFFFFFF, 0xFFFFFFFF);
-        surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText - WidthMode - 15, BaseY, RightPosition - WidthText, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Mode.c_str(), (int)Mode.length(), 0x80FFFFFF, 0x80FFFFFF);
-        surface->RectangleDraw(Scintilla::PRectangle(RightPosition + 6 , BaseY+1, RightPosition + 25, BaseY+20), 0x00000000, Network::IsLive(time) ? 0xFF80FF80 : 0xFF000000);
+        surface->RectangleDraw(Scintilla::PRectangle(RightPosition - WidthText - 10, BaseY, RightPosition + 25, BaseY+20), 0x00000000, 0x80000000);
+        surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText, BaseY, RightPosition, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Status.c_str(), (int)Status.length(), 0x80FFFFFF, 0xA0FFFFFF);
+        surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText - WidthMode - 15, BaseY, RightPosition - WidthText, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Mode.c_str(), (int)Mode.length(), 0x80FFFFFF, 0xA0FFFFFF);
+        surface->RectangleDraw(Scintilla::PRectangle(RightPosition + 6 , BaseY+1, RightPosition + 24, BaseY+19), 0x00000000, Network::IsLive(time) ? 0x8080FF80 : 0x80000000);
       }
     }
-
 
     Renderer::EndTextRendering();
 

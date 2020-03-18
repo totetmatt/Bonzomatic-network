@@ -12,6 +12,7 @@ typedef struct
   int nWidth;
   int nHeight;
   RENDERER_WINDOWMODE windowMode;
+  bool ResizableWindow;
   bool bVsync;
 } RENDERER_SETTINGS;
 

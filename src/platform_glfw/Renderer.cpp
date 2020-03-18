@@ -254,7 +254,7 @@ namespace Renderer
     glfwWindowHint(GLFW_COCOA_GRAPHICS_SWITCHING, GLFW_FALSE);
 #endif
 
-    glfwWindowHint(GLFW_RESIZABLE, settings->windowMode == RENDERER_WINDOWMODE_WINDOWED ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, (settings->ResizableWindow && settings->windowMode == RENDERER_WINDOWMODE_WINDOWED) ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_DECORATED, settings->windowMode == RENDERER_WINDOWMODE_BORDERLESS ? GLFW_FALSE : GLFW_TRUE);
     
     // Prevent fullscreen window minimize on focus loss
