@@ -13,9 +13,14 @@ namespace Network
 	bool NewShaderToGrab = false;
   bool ShaderHasBeenCompiled = false;
 	jsonxx::Object LastGrabberShader;
+  float NetworkTime = 0.0;
 	float LastSendTime = 0.0f;
   float LastShaderGrabTime = -1000.0f;
 	float ShaderUpdateInterval = 0.3f;
+
+  bool TryingToConnect = false;
+  float ReconnectionInterval = 1.0f;
+  float LastReconnectionAttempt = 0.0f;
   
 	enum NetMode {
 		NetMode_Sender,
@@ -43,6 +48,7 @@ namespace Network
 				if (status != 0) {
 					printf("-- Connection error: %d\n", status);
 				}
+        TryingToConnect = false;
 				break;
 			}
 			case MG_EV_WEBSOCKET_HANDSHAKE_DONE: {
@@ -75,6 +81,7 @@ namespace Network
 				if (s_is_connected) printf("-- Disconnected\n");
 				s_done = 1;
 				bNetworkLaunched = false;
+        ShaderHasBeenCompiled = false; // So we will try to recompile when connection is on again
 				break;
 			}
 		}
@@ -107,7 +114,7 @@ namespace Network
 		}
 	}
 
-	void OpenConnection()
+	void PrepareConnection()
 	{
 		if (!bNetworkEnabled) return;
 		
@@ -124,6 +131,13 @@ namespace Network
     Network_Break_URL(ServerURL, ServerName, RoomName, NickName);
 
 		mg_mgr_init(&mgr, NULL);
+  }
+
+  void OpenConnection()
+	{
+    if (!bNetworkEnabled) return;
+    LastReconnectionAttempt = NetworkTime;
+    TryingToConnect = true;
 
 		// ws://127.0.0.1:8000
 		printf("Try to connect to %s\n", ServerURL.c_str());
@@ -140,7 +154,7 @@ namespace Network
 		mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, strlen(msg)+1);
 	}
 
-	void SendShader(float time, ShaderMessage NewMessage) {
+	void SendShader(ShaderMessage NewMessage) {
 		if (!bNetworkLaunched) return;
 		if (NetworkMode != NetMode_Sender) return;
 
@@ -151,18 +165,19 @@ namespace Network
 		Data << "Compile" << NewMessage.NeedRecompile;
 		Data << "Caret" << NewMessage.CaretPosition;
 		Data << "Anchor" << NewMessage.AnchorPosition;
+    Data << "FirstVisibleLine" << NewMessage.FirstVisibleLine;
 
 		jsonxx::Object Message = Object("Data", Data);
 		std::string TextJson = Message.json();
 		//printf("JSON: %s\n", TextJson.c_str());
 		mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, TextJson.c_str(), TextJson.length()+1);
-		LastSendTime = time;
+		LastSendTime = NetworkTime;
 	}
 
-	bool IsShaderNeedUpdate(float Time) {
+	bool IsShaderNeedUpdate() {
 		if (!bNetworkLaunched) return false;
 		if (NetworkMode != NetMode_Sender) return false;
-		return (Time - LastSendTime >= ShaderUpdateInterval);
+		return (NetworkTime - LastSendTime >= ShaderUpdateInterval);
 	}
 
 	void RecieveShader(size_t size, unsigned char *data) {
@@ -182,6 +197,7 @@ namespace Network
 				if (!Data.has<jsonxx::String>("Code")) ErrorFound = true;
 				if (!Data.has<jsonxx::Number>("Caret")) ErrorFound = true;
 				if (!Data.has<jsonxx::Number>("Anchor")) ErrorFound = true;
+        if (!Data.has<jsonxx::Number>("FirstVisibleLine")) ErrorFound = true;
 				if (!Data.has<jsonxx::Boolean>("Compile")) ErrorFound = true;
 			} else {
 				ErrorFound = true;
@@ -210,12 +226,12 @@ namespace Network
 		return NetworkMode == NetMode_Grabber;
 	}
 
-  bool IsLive(float time) {
+  bool IsLive() {
     if(!bNetworkLaunched) return false;
     if(NetworkMode == NetMode_Grabber) {
       // if we got a shader less that 2s ago, we can say that there is someone sending
       float MaxLiveStatusDuration = 2.0;
-      return (time-LastShaderGrabTime < MaxLiveStatusDuration);
+      return (NetworkTime-LastShaderGrabTime < MaxLiveStatusDuration);
     }
     return true;
   }
@@ -233,13 +249,14 @@ namespace Network
 		return NewShaderToGrab;
 	}
 
-	bool GetNewShader(float time, ShaderMessage& OutShader) {
+	bool GetNewShader(ShaderMessage& OutShader) {
 		if (NetworkMode != NetMode_Grabber) return false;
 		NewShaderToGrab = false;
 		jsonxx::Object Data = LastGrabberShader.get<jsonxx::Object>("Data");
 		OutShader.Code = Data.get<jsonxx::String>("Code");
 		OutShader.CaretPosition = Data.get<jsonxx::Number>("Caret");
 		OutShader.AnchorPosition = Data.get<jsonxx::Number>("Anchor");
+    OutShader.FirstVisibleLine = Data.get<jsonxx::Number>("FirstVisibleLine");
     bool NeedRecompile = Data.get<jsonxx::Boolean>("Compile");
     // If we grab a shader for the first time, we will try to recompile it, in case it's a valid one
     if(!ShaderHasBeenCompiled) {
@@ -247,13 +264,19 @@ namespace Network
       ShaderHasBeenCompiled=true;
     }
 		OutShader.NeedRecompile = NeedRecompile;
-    LastShaderGrabTime = time;
+    LastShaderGrabTime = NetworkTime;
 		return true;
 	}
 
-	void Tick() {
+	void Tick(float time) {
+    NetworkTime = time;
 		if (!bNetworkEnabled) return;
 
+    if(!bNetworkLaunched && !TryingToConnect) {
+      if(time-LastReconnectionAttempt>=ReconnectionInterval) {
+        OpenConnection();
+      }
+    }
 		// TODO: should be in another thread?
 		mg_mgr_poll(&mgr, 10);
 	}

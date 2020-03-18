@@ -189,6 +189,7 @@ int main(int argc, const char *argv[])
   
   Network::CommandLine(argc, argv, &netSettings);
   Network::LoadSettings(options, &netSettings);
+  Network::PrepareConnection();
   Network::OpenConnection();
 
   std::string windowName = "";
@@ -446,7 +447,7 @@ int main(int argc, const char *argv[])
 
   int nMargin = 20;
 
-  bool bTexPreviewVisible = true;
+  bool bTexPreviewVisible = false;
 
   editorOptions.rect = Scintilla::PRectangle( nMargin, nMargin, settings.nWidth - nMargin - nTexPreviewWidth - nMargin, settings.nHeight - nMargin * 2 - nDebugOutputHeight );
   ShaderEditor mShaderEditor( surface );
@@ -470,6 +471,7 @@ int main(int argc, const char *argv[])
   static float fftDataIntegrated[FFT_SIZE];
   memset(fftDataIntegrated, 0, sizeof(float) * FFT_SIZE);
 
+  bool bGrabberFollowCaret = true;
   bool bShowGui = true;
   Timer::Start();
   float fNextTick = 0.1f;
@@ -483,24 +485,26 @@ int main(int argc, const char *argv[])
     Renderer::StartFrame();
 
     // Networking
-    Network::Tick();
+    Network::Tick(time);
     
-    if (Network::IsShaderNeedUpdate(time))
+    if (Network::IsShaderNeedUpdate())
     {
       mShaderEditor.GetText(szShader, 65535);
-	  Network::ShaderMessage NewMessage;
-	  NewMessage.Code = std::string(szShader);
-	  NewMessage.NeedRecompile = false;
-	  NewMessage.CaretPosition = mShaderEditor.WndProc(SCI_GETCURRENTPOS, 0, 0);
-	  NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
-      Network::SendShader(time, NewMessage);
-	}
+	    Network::ShaderMessage NewMessage;
+	    NewMessage.Code = std::string(szShader);
+	    NewMessage.NeedRecompile = false;
+	    NewMessage.CaretPosition = mShaderEditor.WndProc(SCI_GETCURRENTPOS, 0, 0);
+	    NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
+      int TopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
+      NewMessage.FirstVisibleLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, TopLine, 0);
+      Network::SendShader(NewMessage);
+	  }
     
     for(int i=0; i<Renderer::mouseEventBufferCount; i++)
     {
       if (bShowGui)
       {
-		bool IsGrabber = Network::IsConnected() && Network::IsGrabber();
+		    bool IsGrabber = Network::IsConnected() && Network::IsGrabber();
         switch (Renderer::mouseEventBuffer[i].eventType)
         {
           case Renderer::MOUSEEVENTTYPE_MOVE:
@@ -513,7 +517,7 @@ int main(int argc, const char *argv[])
             if(!IsGrabber) mShaderEditor.ButtonUp( Scintilla::Point( Renderer::mouseEventBuffer[i].x, Renderer::mouseEventBuffer[i].y ), time * 1000, false );
             break;
           case Renderer::MOUSEEVENTTYPE_SCROLL:
-            mShaderEditor.WndProc( SCI_LINESCROLL, (int)(-Renderer::mouseEventBuffer[i].x * fScrollXFactor), (int)(-Renderer::mouseEventBuffer[i].y * fScrollYFactor));
+            if(!IsGrabber || !bGrabberFollowCaret) mShaderEditor.WndProc( SCI_LINESCROLL, (int)(-Renderer::mouseEventBuffer[i].x * fScrollXFactor), (int)(-Renderer::mouseEventBuffer[i].y * fScrollYFactor));
             break;
         }
       }
@@ -521,45 +525,50 @@ int main(int argc, const char *argv[])
     Renderer::mouseEventBufferCount = 0;
 
     if (Network::HasNewShader()) {
-		Network::ShaderMessage NewMessage;
-		if(Network::GetNewShader(time, NewMessage)) {
+		  Network::ShaderMessage NewMessage;
+		  if(Network::GetNewShader(NewMessage)) {
 
-			int PreviousTopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
-      int PreviousTopDocLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, PreviousTopLine, 0);
-      //int PreviousTopLineWrapCount = mShaderEditor.WndProc(SCI_WRAPCOUNT, PreviousTopDocLine, 0) - 1;
-      //if(PreviousTopLineWrapCount < 0) PreviousTopLineWrapCount = 0;
-      //int PreviousTopLineTotal = PreviousTopDocLine + PreviousTopLineWrapCount;
-      int PreviousTopLineTotal = PreviousTopDocLine;
+			  int PreviousTopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
+        int PreviousTopDocLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, PreviousTopLine, 0);
+        //int PreviousTopLineWrapCount = mShaderEditor.WndProc(SCI_WRAPCOUNT, PreviousTopDocLine, 0) - 1;
+        //if(PreviousTopLineWrapCount < 0) PreviousTopLineWrapCount = 0;
+        //int PreviousTopLineTotal = PreviousTopDocLine + PreviousTopLineWrapCount;
+        int PreviousTopLineTotal = PreviousTopDocLine;
 
-			mShaderEditor.SetText(NewMessage.Code.c_str());
-			mShaderEditor.WndProc(SCI_SETCURRENTPOS, NewMessage.CaretPosition, 0);
-			mShaderEditor.WndProc(SCI_SETANCHOR, NewMessage.AnchorPosition, 0);
-			mShaderEditor.WndProc(SCI_SETFIRSTVISIBLELINE, PreviousTopLineTotal, 0);
+			  mShaderEditor.SetText(NewMessage.Code.c_str());
+			  mShaderEditor.WndProc(SCI_SETCURRENTPOS, NewMessage.CaretPosition, 0);
+			  mShaderEditor.WndProc(SCI_SETANCHOR, NewMessage.AnchorPosition, 0);
+        mShaderEditor.WndProc(SCI_SETFIRSTVISIBLELINE, PreviousTopLineTotal, 0);
+
+        if(bGrabberFollowCaret) {
+          //mShaderEditor.WndProc(SCI_SETFIRSTVISIBLELINE, NewMessage.FirstVisibleLine, 0);
+          mShaderEditor.WndProc(SCI_SCROLLCARET, 0, 0);
+        }
       
-      /*
-      const char* newCode = NewMessage.Code.c_str();
-      mShaderEditor.WndProc(SCI_SETTARGETSTART, 0, 0);
-      mShaderEditor.WndProc(SCI_SETTARGETEND, strlen(szShader), 0);
-      mShaderEditor.WndProc(SCI_REPLACETARGET, strlen(newCode), (sptr_t)newCode);
-      */
-      //mShaderEditor.WndProc(SCI_SETCURRENTPOS, NewMessage.CaretPosition, 0);
-			//mShaderEditor.WndProc(SCI_SETANCHOR, NewMessage.AnchorPosition, 0);
+        /*
+        const char* newCode = NewMessage.Code.c_str();
+        mShaderEditor.WndProc(SCI_SETTARGETSTART, 0, 0);
+        mShaderEditor.WndProc(SCI_SETTARGETEND, strlen(szShader), 0);
+        mShaderEditor.WndProc(SCI_REPLACETARGET, strlen(newCode), (sptr_t)newCode);
+        */
+        //mShaderEditor.WndProc(SCI_SETCURRENTPOS, NewMessage.CaretPosition, 0);
+			  //mShaderEditor.WndProc(SCI_SETANCHOR, NewMessage.AnchorPosition, 0);
 			
 
-			if(NewMessage.NeedRecompile) {
-				mShaderEditor.GetText(szShader, 65535);
-				if (Renderer::ReloadShader(szShader, (int)strlen(szShader), szError, 4096))
-				{
-					// Shader compilation successful; we set a flag to save if the frame render was successful
-					// (If there is a driver crash, don't save.)
-					newShader = true;
-				}
-				else
-				{
-					mDebugOutput.SetText(szError);
-				}
-			}
-		}
+			  if(NewMessage.NeedRecompile) {
+				  mShaderEditor.GetText(szShader, 65535);
+				  if (Renderer::ReloadShader(szShader, (int)strlen(szShader), szError, 4096))
+				  {
+					  // Shader compilation successful; we set a flag to save if the frame render was successful
+					  // (If there is a driver crash, don't save.)
+					  newShader = true;
+				  }
+				  else
+				  {
+					  mDebugOutput.SetText(szError);
+				  }
+			  }
+		  }
     }
 
     for(int i=0; i<Renderer::keyEventBufferCount; i++)
@@ -568,6 +577,10 @@ int main(int argc, const char *argv[])
       {
          bTexPreviewVisible = !bTexPreviewVisible;
          needEditorUpdate = true;
+      }
+      else if (Renderer::keyEventBuffer[i].scanCode == 284) // F3
+      {
+        bGrabberFollowCaret = !bGrabberFollowCaret;
       }
       else if (Renderer::keyEventBuffer[i].scanCode == 286 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'r')) // F5
       {
@@ -579,7 +592,9 @@ int main(int argc, const char *argv[])
 		      NewMessage.NeedRecompile = true;
 		      NewMessage.CaretPosition = mShaderEditor.WndProc(SCI_GETCURRENTPOS, 0, 0);
 		      NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
-		      Network::SendShader(time, NewMessage);
+          int TopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
+          NewMessage.FirstVisibleLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, TopLine, 0);
+		      Network::SendShader(NewMessage);
         }
 
         if (Renderer::ReloadShader( szShader, (int)strlen(szShader), szError, 4096 ))
@@ -728,7 +743,7 @@ int main(int argc, const char *argv[])
         
         std::string Status = Network::GetNickName();
         if(Network::IsConnected()) {
-          if(Network::IsLive(time)) {
+          if(Network::IsLive()) {
             Status += " - Live";
           } else {
             Status += " - Offline";
@@ -746,7 +761,7 @@ int main(int argc, const char *argv[])
         surface->RectangleDraw(Scintilla::PRectangle(RightPosition - WidthText - 10, BaseY, RightPosition + 25, BaseY+20), 0x00000000, 0x80000000);
         surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText, BaseY, RightPosition, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Status.c_str(), (int)Status.length(), 0x80FFFFFF, 0xA0FFFFFF);
         surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText - WidthMode - 15, BaseY, RightPosition - WidthText, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Mode.c_str(), (int)Mode.length(), 0x80FFFFFF, 0xA0FFFFFF);
-        surface->RectangleDraw(Scintilla::PRectangle(RightPosition + 6 , BaseY+1, RightPosition + 24, BaseY+19), 0x00000000, Network::IsLive(time) ? 0x8080FF80 : 0x80000000);
+        surface->RectangleDraw(Scintilla::PRectangle(RightPosition + 6 , BaseY+1, RightPosition + 24, BaseY+19), 0x00000000, Network::IsLive() ? 0x8080FF80 : 0x80000000);
       }
     }
 
