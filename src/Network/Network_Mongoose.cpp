@@ -72,7 +72,7 @@ namespace Network
 			}
 			case MG_EV_WEBSOCKET_FRAME: {
 				struct websocket_message *wm = (struct websocket_message *) ev_data;
-				printf("Grabbed message %d.\n", (int)wm->size);
+				//printf("Grabbed message %d.\n", (int)wm->size);
 				RecieveShader(wm->size, wm->data);
 				// TODO: clean the buffer with mbuf_remove(); ? or maybe not needed with websocket ...
 				break;
@@ -166,6 +166,8 @@ namespace Network
 		Data << "Caret" << NewMessage.CaretPosition;
 		Data << "Anchor" << NewMessage.AnchorPosition;
     Data << "FirstVisibleLine" << NewMessage.FirstVisibleLine;
+    Data << "RoomName" << RoomName;
+    Data << "NickName" << NickName;
 
 		jsonxx::Object Message = Object("Data", Data);
 		std::string TextJson = Message.json();

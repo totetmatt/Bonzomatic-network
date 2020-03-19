@@ -178,7 +178,7 @@ int main(int argc, const char *argv[])
       settings.windowMode = RENDERER_WINDOWMODE_BORDERLESS;
     if (winjson.has<jsonxx::Boolean>("resizable"))
       settings.ResizableWindow = winjson.get<jsonxx::Boolean>("resizable");
-    if (winjson.has<jsonxx::Boolean>("hideConsole"))
+    if (winjson.has<jsonxx::Boolean>("hideConsole") && winjson.get<jsonxx::Boolean>("hideConsole"))
       Misc::HideConsoleWindow();
   }
   if(!SkipConfigDialog)

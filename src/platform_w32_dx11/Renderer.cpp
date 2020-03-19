@@ -175,6 +175,7 @@ namespace Renderer
 
   int nWidth = 0;
   int nHeight = 0;
+  bool nSizeChanged = false;
   HWND hWnd = NULL;
 
   KeyEvent keyEventBuffer[512];
@@ -217,6 +218,7 @@ namespace Renderer
 //         case VK_BACKSLASH:    sciKey = '\\';          break;
 //         case VK_RIGHTBRACKET: sciKey = ']';           break;
         case VK_F2:         sciKey = 283;      break;
+        case VK_F3:         sciKey = 284;      break;
         case VK_F5:         sciKey = 286;      break;
         case VK_F11:        sciKey = 292;      break;
         case VK_SHIFT:
@@ -344,7 +346,7 @@ namespace Renderer
 
     DWORD wExStyle = WS_EX_APPWINDOW;
     DWORD wStyle = WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-    if (pSetup->windowMode == RENDERER_WINDOWMODE_WINDOWED) wStyle |= WS_OVERLAPPED | WS_CAPTION;
+    if (pSetup->windowMode == RENDERER_WINDOWMODE_WINDOWED) wStyle |= WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 
     RECT wr={0,0,pSetup->nWidth,pSetup->nHeight};
     AdjustWindowRectEx(&wr, wStyle, FALSE, wExStyle);
@@ -721,6 +723,7 @@ namespace Renderer
   {
     nWidth  = settings->nWidth;
     nHeight = settings->nHeight;
+    nSizeChanged = false;
 
     if (!InitWindow(settings, windowName))
     {
