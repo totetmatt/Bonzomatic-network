@@ -5,12 +5,15 @@
 #include "mongoose.h"
 
 struct Room {
-	std::string RoomName;
+	std::string StreamingRoomName;
+  bool IsOwnerRoom;
 };
 
 struct User {
 	Room* CurrentRoom;
+  Room* OwnerRoom;
 	std::string UserName;
+  bool IsSuperUser;
 };
 
 std::vector<Room*> Rooms;
@@ -19,6 +22,17 @@ std::vector<User*> Users;
 static sig_atomic_t s_signal_received = 0;
 static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
+
+void Network_Break_URL(std::string ServerURL, std::string& RoomName, std::string& NickName) {
+  
+    std::size_t LastPart = ServerURL.rfind('/');
+    if(LastPart == std::string::npos || LastPart<=1) {
+      RoomName = ServerURL;
+    } else {
+      RoomName = ServerURL.substr(0,LastPart);
+      NickName = ServerURL.substr(LastPart+1);
+    }
+}
 
 static void signal_handler(int sig_num) {
 	signal(sig_num, signal_handler);  // Reinstantiate signal handler
@@ -41,7 +55,7 @@ static void broadcast(struct mg_connection *nc, const struct mg_str msg) {
 	printf("Message from %s\n", addr);
     */
 
-	printf("%s | Message from %s\n", CurUser->CurrentRoom->RoomName.c_str(), CurUser->UserName.c_str());
+	printf("%s | Message from %s\n", CurUser->CurrentRoom->StreamingRoomName.c_str(), CurUser->UserName.c_str());
 
   //char buf[500];
 	//snprintf(buf, sizeof(buf), "%s %.*s", addr, (int)msg.len, msg.p);
@@ -53,10 +67,31 @@ static void broadcast(struct mg_connection *nc, const struct mg_str msg) {
 		if (c == nc) continue; /* Don't send to the sender. */
 		User* TargetUser = (User*)c->user_data;
     // Only send if in the same room
-		if (TargetUser && TargetUser->CurrentRoom == CurUser->CurrentRoom) {
-			mg_send_websocket_frame(c, WEBSOCKET_OP_TEXT, msg.p, msg.len);
+		if (TargetUser) {
+      if(TargetUser->IsSuperUser || TargetUser->CurrentRoom == CurUser->CurrentRoom || TargetUser->CurrentRoom == CurUser->OwnerRoom) {
+			  mg_send_websocket_frame(c, WEBSOCKET_OP_TEXT, msg.p, msg.len);
+      }
 	  }
 	}
+}
+
+Room* GetRoom(std::string roomName, bool IsOwnerRoom) {
+  Room* TargetRoom = NULL;
+	for (int i = 0; i < Rooms.size(); ++i) {
+		if (Rooms[i]->StreamingRoomName == roomName) {
+			//printf("Found room %s\n", joinedRoom.c_str());
+			TargetRoom = Rooms[i];
+			break;
+	  }
+	}
+	if (!TargetRoom) { // no room found
+		Room* NewRoom = new Room();
+		NewRoom->StreamingRoomName = roomName;
+    NewRoom->IsOwnerRoom = IsOwnerRoom;
+		Rooms.push_back(NewRoom);
+		TargetRoom = NewRoom;
+	}
+  return TargetRoom;
 }
 
 static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
@@ -68,35 +103,37 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 		mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT | MG_SOCK_STRINGIFY_REMOTE);
 
 		struct http_message *hm = (struct http_message *) ev_data;
-		std::string joinedRoom;
-		if (hm->uri.len == 0 || hm->uri.p[0] != '/') {
-			joinedRoom = "DefaultRoom";
-		} else {
-		  joinedRoom.append(hm->uri.p, hm->uri.len);
-	  }
+    std::string urlParam="";
+    urlParam.append(hm->uri.p, hm->uri.len);
+		std::string baseRoomName,nickName;
+    bool IsSuperUser = false;
+    Network_Break_URL(urlParam, baseRoomName, nickName);
+    if(baseRoomName.length() == 0 || baseRoomName == "/") {
+      baseRoomName = "SuperRoom";
+      IsSuperUser = true;
+    }
+    std::string streamingRoomName = baseRoomName;
+    bool IsOwnerRoom = true;
+    if(nickName.length() > 0 && nickName != "/") {
+      streamingRoomName += "/" + nickName;
+      IsOwnerRoom = false;
+    }
 		
-		Room* TargetRoom = NULL;
-		for (int i = 0; i < Rooms.size(); ++i) {
-			if (Rooms[i]->RoomName == joinedRoom) {
-				//printf("Found room %s\n", joinedRoom.c_str());
-				TargetRoom = Rooms[i];
-				break;
-	    }
-	  }
-		if (!TargetRoom) { // no room found
-			Room* NewRoom = new Room();
-			NewRoom->RoomName = joinedRoom;
-			Rooms.push_back(NewRoom);
-			TargetRoom = NewRoom;
-	  }
-		
+		Room* TargetRoom = GetRoom(streamingRoomName, IsOwnerRoom);
+		Room* OwnerRoom = TargetRoom;
+    if(!IsOwnerRoom) {
+      OwnerRoom = GetRoom(baseRoomName, true);
+    }
+
 		User* NewUser = new User();
-		NewUser->UserName = addr;
+		NewUser->UserName = IsOwnerRoom ? baseRoomName : nickName;
 		NewUser->CurrentRoom = TargetRoom;
+    NewUser->OwnerRoom = OwnerRoom;
+    NewUser->IsSuperUser = IsSuperUser;
 		Users.push_back(NewUser);
 
 		nc->user_data = NewUser;
-		printf("%s ++ joined %s\n", addr, joinedRoom.c_str());
+		printf("%s ++ joined %s\n", addr, streamingRoomName.c_str());
 		break;
 	}
 	case MG_EV_WEBSOCKET_FRAME: {
@@ -106,6 +143,10 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 		broadcast(nc, d);
 		break;
 	}
+  case MG_EV_POLL: {
+
+    break;
+  }
 	case MG_EV_HTTP_REQUEST: {
 		mg_serve_http(nc, (struct http_message *) ev_data, s_http_server_opts);
 		break;
@@ -160,12 +201,6 @@ int main(int argc, const char *argv[])
 	}
 	mg_mgr_free(&mgr);
     
-
-	// Wait indefinitely
-	while (true) {
-		Sleep(30);
-	}
-
   // Clean
 	for (auto Cur : Rooms) {
 		delete Cur;

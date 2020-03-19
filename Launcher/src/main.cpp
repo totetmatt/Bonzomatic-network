@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <vector>
 
+#include "Network.h"
+
 // TMP
 #include <windows.h>
 
@@ -146,14 +148,20 @@ int main(int argc, const char *argv[])
   printf("[LAUNCHER] Started \n");
   FindDesktopResolution();
 
-  LaunchInstances();
+  Network::PrepareConnection();
+  Network::OpenConnection("ws://127.0.0.1:8000/");
+
+  //LaunchInstances();
 
   // Wait indefinitely
   while (true) {
-	  Sleep(30);
+    Network::Tick();
+	  //Sleep(30);
   }
 
   ReleaseInstances();
+
+  Network::Release();
   
   return 0;
 }
