@@ -176,12 +176,15 @@ namespace Renderer
 
   int nWidth = 0;
   int nHeight = 0;
+  bool nSizeChanged = false;
   HWND hWnd = NULL;
 
   KeyEvent keyEventBuffer[512];
   int keyEventBufferCount = 0;
   MouseEvent mouseEventBuffer[512];
   int mouseEventBufferCount = 0;
+
+  void window_size_callback(int width, int height);
 
   LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
   {
@@ -218,6 +221,7 @@ namespace Renderer
 //         case VK_BACKSLASH:    sciKey = '\\';          break;
 //         case VK_RIGHTBRACKET: sciKey = ']';           break;
         case VK_F2:         sciKey = 283;      break;
+        case VK_F3:         sciKey = 284;      break;
         case VK_F5:         sciKey = 286;      break;
         case VK_F11:        sciKey = 292;      break;
         case VK_SHIFT:
@@ -317,11 +321,18 @@ namespace Renderer
         }
       } break;
 
+    case WM_SIZE:
+    {
+      window_size_callback(LOWORD(lParam), HIWORD(lParam));
+      break;
+    }
+
     case WM_CLOSE: 
       {
         run = false;
       } break;
     }
+
 
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
   }
@@ -345,7 +356,9 @@ namespace Renderer
 
     DWORD wExStyle = WS_EX_APPWINDOW;
     DWORD wStyle = WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-    if (pSetup->windowMode == RENDERER_WINDOWMODE_WINDOWED) wStyle |= WS_OVERLAPPED | WS_CAPTION;
+    if (pSetup->windowMode == RENDERER_WINDOWMODE_WINDOWED) wStyle |= WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    // TODO: issues with scintilla debug output
+    //if (pSetup->ResizableWindow) wStyle |= WS_MAXIMIZEBOX | WS_THICKFRAME;
 
     RECT wr={0,0,pSetup->nWidth,pSetup->nHeight};
     AdjustWindowRectEx(&wr, wStyle, FALSE, wExStyle);
@@ -379,6 +392,7 @@ namespace Renderer
 
     nWidth  = pSetup->nWidth;
     nHeight = pSetup->nHeight;
+    nSizeChanged = false;
 
     ZeroMemory(&d3dpp,sizeof(d3dpp));
 
@@ -898,5 +912,18 @@ namespace Renderer
     pFrameGrabTexture->UnlockRect();
 
     return true;
+  }
+
+  void window_size_callback(int width, int height)
+  {
+    // Avoid possible division by 0
+    width = max(width, 1);
+    height = max(height, 1);
+    nWidth = width;
+    nHeight = height;
+    nSizeChanged = true;
+    /*if (pboSize < nWidth*nHeight) {
+      AllocateBuffers();
+    }*/
   }
 }
