@@ -90,4 +90,7 @@ namespace Misc
     }
     return NULL;
   }
+  void HideConsoleWindow() {
+    ShowWindow(GetConsoleWindow(), SW_HIDE);
+  }
 }

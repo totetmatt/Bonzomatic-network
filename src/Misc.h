@@ -11,4 +11,5 @@ namespace Misc
 
   bool FileExists(const char * path);
   const char * GetDefaultFontPath();
+  void HideConsoleWindow();
 }

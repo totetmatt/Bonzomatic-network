@@ -129,3 +129,7 @@ const char * Misc::GetDefaultFontPath()
   }
   return NULL;
 }
+
+void Misc::HideConsoleWindow() {
+  // TODO OSX
+}

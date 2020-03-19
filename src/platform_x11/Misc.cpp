@@ -91,3 +91,7 @@ out:
   FcPatternDestroy(pat);
   return ret;
 }
+
+void Misc::HideConsoleWindow() {
+  // TODO x11
+}
