@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include "FFT.h"
+#include <string>
 
 namespace FFT
 {
@@ -37,7 +38,7 @@ namespace FFT
     }
   }
 
-  bool Open()
+  bool Open(bool CapturePlaybackDevices, const char* CaptureDeviceSearchString)
   {
     memset( sampleBuf, 0, sizeof( float ) * FFT_SIZE * 2 );
 
@@ -54,8 +55,54 @@ namespace FFT
 
     printf( "[FFT] MAL context initialized, backend is '%s'\n", ma_get_backend_name( context.backend ) );
 
-    ma_device_config config = ma_device_config_init( ma_device_type_capture );
-    config.capture.pDeviceID = NULL;
+    ma_device_id* TargetDevice = NULL;
+
+    ma_device_info* pPlaybackDeviceInfos;
+    ma_uint32 playbackDeviceCount;
+    ma_device_info* pCaptureDeviceInfos;
+    ma_uint32 captureDeviceCount;
+    result = ma_context_get_devices(&context, &pPlaybackDeviceInfos, &playbackDeviceCount, &pCaptureDeviceInfos, &captureDeviceCount);
+    if (result != MA_SUCCESS) {
+        printf("Failed to retrieve device information.\n");
+        return -3;
+    }
+
+    printf("Playback Devices\n");
+    for (ma_uint32 iDevice = 0; iDevice < playbackDeviceCount; ++iDevice) {
+        printf("    %u: %s\n", iDevice, pPlaybackDeviceInfos[iDevice].name);
+    }
+    
+    printf("\n");
+
+    printf("Capture Devices\n");
+    for (ma_uint32 iDevice = 0; iDevice < captureDeviceCount; ++iDevice) {
+        printf("    %u: %s\n", iDevice, pCaptureDeviceInfos[iDevice].name);
+    }
+
+    if(strlen(CaptureDeviceSearchString) > 0) {
+      if(CapturePlaybackDevices) {
+        for (ma_uint32 iDevice = 0; iDevice < playbackDeviceCount; ++iDevice) {
+          std::string DeviceName = pPlaybackDeviceInfos[iDevice].name;
+          if(DeviceName.find(CaptureDeviceSearchString) != std::string::npos ){
+            TargetDevice = &pPlaybackDeviceInfos[iDevice].id;
+            break;
+          }
+        }
+      } else {
+        for (ma_uint32 iDevice = 0; iDevice < captureDeviceCount; ++iDevice) {
+          std::string DeviceName = pCaptureDeviceInfos[iDevice].name;
+          if(DeviceName.find(CaptureDeviceSearchString) != std::string::npos ){
+            TargetDevice = &pCaptureDeviceInfos[iDevice].id;
+            break;
+          }
+        }
+      }
+    }
+
+    printf("\n");
+
+    ma_device_config config = ma_device_config_init( CapturePlaybackDevices ? ma_device_type_loopback : ma_device_type_capture );
+    config.capture.pDeviceID = TargetDevice;
     config.capture.format = ma_format_f32;
     config.capture.channels = 2;
     config.sampleRate = 44100;
@@ -78,6 +125,8 @@ namespace FFT
       printf( "[FFT] Failed to start capture device: %d\n", result );
       return false;
     }
+
+    printf( "[FFT] Capturing %s\n", captureDevice.capture.name );
 
     return true;
   }

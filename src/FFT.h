@@ -4,7 +4,7 @@ namespace FFT
 {
   extern float fAmplification;
 
-  bool Open();
+  bool Open(bool CapturePlaybackDevices, const char* CaptureDeviceSearchString);
   bool GetFFT( float * _samples );
   void Close();
 }

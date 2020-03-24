@@ -154,6 +154,18 @@ int main(int argc, const char *argv[])
 			if (netjson.has<jsonxx::String>("networkMode"))
 				netSettings.NetworkModeString = netjson.get<jsonxx::String>("networkMode");
 		}
+
+  bool fftCapturePlaybackDevices = false;
+  std::string fftCaptureDeviceSearchString = "";
+  if (options.has<jsonxx::Object>("rendering"))
+  {
+    jsonxx::Object RenderingSection = options.get<jsonxx::Object>("rendering");
+    if (RenderingSection.has<jsonxx::Boolean>("fftCapturePlaybackDevices"))
+      fftCapturePlaybackDevices = RenderingSection.get<jsonxx::Boolean>("fftCapturePlaybackDevices");
+    if (RenderingSection.has<jsonxx::String>("fftCaptureDeviceSearchString"))
+      fftCaptureDeviceSearchString = RenderingSection.get<jsonxx::String>("fftCaptureDeviceSearchString");
+  }
+
 //#ifdef _DEBUG
 #if 0
   settings.nWidth = 1280;
@@ -205,7 +217,7 @@ int main(int argc, const char *argv[])
     return -1;
   }
 
-  if (!FFT::Open())
+  if (!FFT::Open(fftCapturePlaybackDevices, fftCaptureDeviceSearchString.c_str()))
   {
     printf("FFT::Open() failed, continuing anyway...\n");
     //return -1;
@@ -251,10 +263,11 @@ int main(int argc, const char *argv[])
   {
     if (options.has<jsonxx::Object>("rendering"))
     {
-      if (options.get<jsonxx::Object>("rendering").has<jsonxx::Number>("fftSmoothFactor"))
-        fFFTSmoothingFactor = options.get<jsonxx::Object>("rendering").get<jsonxx::Number>("fftSmoothFactor");
-      if (options.get<jsonxx::Object>("rendering").has<jsonxx::Number>("fftAmplification"))
-        FFT::fAmplification = options.get<jsonxx::Object>("rendering").get<jsonxx::Number>("fftAmplification");
+      jsonxx::Object RenderingSection = options.get<jsonxx::Object>("rendering");
+      if (RenderingSection.has<jsonxx::Number>("fftSmoothFactor"))
+        fFFTSmoothingFactor = RenderingSection.get<jsonxx::Number>("fftSmoothFactor");
+      if (RenderingSection.has<jsonxx::Number>("fftAmplification"))
+        FFT::fAmplification = RenderingSection.get<jsonxx::Number>("fftAmplification");
     }
 
     if (options.has<jsonxx::Object>("textures"))
