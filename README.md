@@ -1,17 +1,17 @@
-# Bonzomatic
-
-[![Build status](https://ci.appveyor.com/api/projects/status/ix6fwi6nym1tu4e7?svg=true)](https://ci.appveyor.com/project/Gargaj/bonzomatic)
-[![Build Status](https://travis-ci.org/Gargaj/Bonzomatic.svg)](https://travis-ci.org/Gargaj/Bonzomatic)
+# Bonzomatic Network
 
 ## What's this?
 This is a live-coding tool, where you can write a 2D fragment/pixel shader while it is running in the background.
+It's a fork of [Bonzomatic](https://github.com/Gargaj/Bonzomatic) that add network communication (WebSocket Server).
+The goal is to send a shader as text across a network and receive it somewhere else for display.
+The shader is send when you ask for compilation (ctrl+r) and also at regular updates (interval can be set in config.json)
+Bonzomatic can be launched as "sender" or as "grabber" if you want to send your shader or visualize a distant shader.
 
 ![Screenshot](https://i.imgur.com/8K8IztLl.jpg)
 
-The tool was originally conceived and implemented after the Revision 2014 demoscene party's live coding competition where two contestants improv-code an effect in 25 minutes head-to-head. Wanna see how it looks in action? Check https://www.youtube.com/watch?v=KG_2q4OEhKc
-
 ## Keys
 - F2: toggle texture preview
+- F3: in a grabber bonzo to toggle following the coder's caret or allowing free scrolling
 - F5 or Ctrl-R: recompile shader
 - F11 or Ctrl/Cmd-f: hide shader overlay
 - Alt-F4 or Shift+Escape: exbobolate your planet
@@ -21,18 +21,61 @@ On Windows, both DirectX 9 and 11 are supported.
 
 For the OpenGL version (for any platform), at least OpenGL 4.1 is required.
 
-On recent macOS, to allow sound input to be captured (for FFT textures to be generated), you need to: Open up System Preferences, click on Security & Privacy, click on the Privacy tab then click on the Microphone menu item. Make sure Bonzomatic.app is in the list and ticked.
+Only windows version has been tested.
+
+## Using Network
+
+### Testing on Alkama Server
+
+#### To start your own live session:
+- double-clic on Bonzomatic.exe
+- In the dialogue, choose "Sender" as network setting
+- put "ws://drone.alkama.com:9000" as server name (it should already be there)
+- choose a room name (can be anything)
+- choose your pseudo (please, dont use the pseudo from someone else :D )
+- If someone is connected to that room, they should see your shader live
+
+#### To watch a live session from someone on Alkama's server:
+- double-clic on Bonzomatic.exe
+- In the dialogue, choose "Grabber" as network setting
+- put "ws://drone.alkama.com:9000" as server name (it should already be there)
+- put the room name chosen by the other person
+- put the pseudo of the other person
+- If someone is sending to that room/pseudo you should see it
+
+### Local Testing
+- Launch a simple local server by double-clicking on BonzoServer.exe (it's in the same folder as Bonzomatic)
+- double-clic on Bonzomatic.exe
+- In the dialogue, choose "Grabber" as network setting
+- put "ws://127.0.0.1:8000" as server name
+- clic on "Run""
+- Open a new Bonzomatic.exe, do the same settings but select "Sender" as network setting
+- If you change the code in bonzomatic window from the sender, you should see the result updated on both bonzomatic.
+
+### Hosting you own server
+You can find a server (coded in Go by Alkama) ready to be deployed here:
+https://github.com/alkama/BonzomaticServer
+
+If you want to code your own server, connection is made using websockets.
+A simple echo server that broadcast received messages to everyone connected is enough for now.
 
 ## Configuration
-You can configure Bonzomatic by creating a `config.json` and placing it next to the binary executable you're planning to run in the working directory for the binary; Bonzomatic will helpfully print this directory out for you when you run it, and you can also pass a file (with absolute or relative path, whichever you want) as parameter to the executable to load any other file as `config.json`. This allows you to have multiple configurations for multiple situations.
+You can configure Bonzomatic by tweaking the `config.json` that is next to the binary executable.
+You can also pass command line options:
+- configfile=config2.json
+- skipdialog
+- serverURL=ws://127.0.0.1:8000
+- networkMode=grabber
 
-The file can have the following contents: (all fields are optional)
+The config.json file can have the following contents: (all fields are optional)
 ``` javascript
 {
   "window":{ // default window size / state, if there's a setup dialog, it will override it
-    "width":1920,
-    "height":1080,
-    "fullscreen":true,
+    "width":1280,
+    "height":720,
+    "fullscreen":false,
+    "resizable": true,
+    "hideConsole": false,
   },
   "font":{ // all paths in the file are also relative to the binary, but again, can be absolute paths if that's more convenient
     "file":"Input-Regular_(InputMono-Medium).ttf",
@@ -41,6 +84,8 @@ The file can have the following contents: (all fields are optional)
   "rendering":{
     "fftSmoothFactor": 0.9, // 0.0 means there's no smoothing at all, 1.0 means the FFT is completely smoothed flat
     "fftAmplification": 1.0, // 1.0 means no change, larger values will result in brighter/stronger bands, smaller values in darker/weaker ones
+    "fftCapturePlaybackDevices": false, // If true, will capture from playback devices (desktop sound) instead of capture devices (mic)
+    "fftCaptureDeviceSearchString":  "", // If not empty, will search a device name containing this string
   },
   "textures":{ // the keys below will become the shader variable names
     "texChecker":"textures/checker.png",
@@ -68,6 +113,13 @@ The file can have the following contents: (all fields are optional)
     "identifier": "hello!", // additional string to the device name; helps source discovery/identification in the receiver if there are multiple sources on the network
     "frameRate": 60.0, // frames per second
     "progressive": true, // progressive or interleaved?
+  },
+  // this section is there is you want to use networking
+  "network": {
+    "enabled": true,
+    "serverURL": "ws://127.0.0.1:8000",
+    "networkMode": "grabber", // can be sender or grabber
+    "udpateInterval": 0.3 // duration between two shader sending
   },
   // this section is if you want to customise colors to your liking
   "theme":{
@@ -102,6 +154,10 @@ As you can see you're gonna need [CMAKE](https://cmake.org/) for this, but don't
 
 ### Windows
 Use at least [Visual C++ 2010](https://support.microsoft.com/ru-ru/help/2977003/the-latest-supported-visual-c-downloads). For the DX9/DX11 builds, obviously you'll be needing a [DirectX SDK](https://www.microsoft.com/en-us/download/details.aspx?id=6812), though a lot of it is already in the Windows 8.1 SDK as well.
+Then:
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ../
+cmake --build .
 
 ### OSX/macOS
 ```cmake``` should take care of everything:
@@ -135,13 +191,13 @@ cd /usr/ports/graphics/bonzomatic
 make install
 ```
 
-
 ## Organizing a competition
 If you want to organize a competition using Bonzomatic at your party, here's a handy-dandy guide on how to get started:
 https://github.com/Gargaj/Bonzomatic/wiki/How-to-set-up-a-Live-Coding-compo
 
 ## Credits and acknowledgements
 ### Original / parent project authors
+- "Bonzomatic" by Gargaj (https://github.com/Gargaj/Bonzomatic)
 - "ScintillaGL" project by Mykhailo Parfeniuk (https://github.com/sopyer/ScintillaGL)
 - Riverwash LiveCoding Tool by Michał Staniszewski and Michal Szymczyk (http://www.plastic-demo.org)
 
@@ -154,9 +210,11 @@ https://github.com/Gargaj/Bonzomatic/wiki/How-to-set-up-a-Live-Coding-compo
 - GLFW by whoever made GLFW (https://www.glfw.org/faq.html)
 - JSON++ by Hong Jiang (https://github.com/hjiang/jsonxx)
 - NDI(tm) SDK by NewTek(tm) (https://www.newtek.com/ndi.html)
+- Mongoose Embedded Web Server Library by Cesanta (https://github.com/cesanta/mongoose)
 
 These software are available under their respective licenses.
 
+The network part has been written by NuSan and is public domain.
 The remainder of this project code was (mostly, I guess) written by Gargaj / Conspiracy and is public domain.
 OSX / macOS maintenance and ports by Alkama / Tpolm + Calodox; Linux maintenance by PoroCYon / K2.
 
