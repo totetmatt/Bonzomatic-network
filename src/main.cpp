@@ -115,7 +115,7 @@ int main(int argc, const char *argv[])
   std::string configFile = "config.json";
   
   if (CmdHasOption(argc, argv, "configfile", &configFile)) {
-    printf("Loading config file '%s'...\n", configFile);
+    printf("Loading config file '%s'...\n", configFile.c_str());
   } else {
     char configPath[256] = { 0 };
     if (getcwd(configPath, 255))
