@@ -26,7 +26,7 @@ void BuildListOfMainDisplayResolutions(std::set<Resolution> &resolutions)
   CFRelease(modes);
 }
 
-bool Renderer::OpenSetupDialog( RENDERER_SETTINGS * settings )
+bool Renderer::OpenSetupDialog( RENDERER_SETTINGS * settings, NETWORK_SETTINGS* netSettings )
 {
   std::set<Resolution> resolutions;
   
