@@ -95,8 +95,8 @@ namespace Network
 		if (o.has<jsonxx::Object>("network"))
 		{
 			jsonxx::Object netjson = o.get<jsonxx::Object>("network");
-			if (netjson.has<jsonxx::Number>("udpateInterval"))
-				ShaderUpdateInterval = netjson.get<jsonxx::Number>("udpateInterval");
+			if (netjson.has<jsonxx::Number>("updateInterval"))
+				ShaderUpdateInterval = netjson.get<jsonxx::Number>("updateInterval");
 		}
     	bNetworkEnabled = DialogSettings->EnableNetwork;
       ServerURL = DialogSettings->ServerURL;
