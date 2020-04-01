@@ -592,8 +592,8 @@ namespace Renderer
   void window_size_callback(GLFWwindow* window, int width, int height)
   {
     // Avoid possible division by 0
-    width = max(width, 1);
-    height = max(height, 1);
+	if(width < 1) width = 1;
+	if(height < 1) height = 1;
     nWidth = width;
     nHeight = height;
     nSizeChanged = true;
