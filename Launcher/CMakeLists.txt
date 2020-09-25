@@ -32,10 +32,37 @@ endif ()
 set(BZC_PROJECT_INCLUDES ${BZC_PROJECT_INCLUDES} ${CMAKE_SOURCE_DIR}/../external/jsonxx)
 set(BZC_PROJECT_LIBS ${BZC_PROJECT_LIBS} bzc_jsonxx)
 
+##############################################################################
+# GLFW
+
+set(BZC_PROJECT_INCLUDES ${BZC_PROJECT_INCLUDES} ${CMAKE_SOURCE_DIR}/external/glfw/include)
+#set(BZC_PROJECT_LIBS ${BZC_PROJECT_LIBS} ${CMAKE_SOURCE_DIR}/external/glfw/lib-vc2017/glfw3.lib)
+set(BZC_PROJECT_LIBS ${BZC_PROJECT_LIBS} ${CMAKE_SOURCE_DIR}/external/glfw/lib-vc2017/glfw3dll.lib)
+
+##############################################################################
+# GLEW
+
+set(BZC_PROJECT_INCLUDES ${BZC_PROJECT_INCLUDES} ${CMAKE_SOURCE_DIR}/external/glew/include)
+set(BZC_PROJECT_LIBS ${BZC_PROJECT_LIBS} ${CMAKE_SOURCE_DIR}/external/glew/lib/Release/x64/glew32.lib)
+set(BZC_PROJECT_LIBS ${BZC_PROJECT_LIBS} ${CMAKE_SOURCE_DIR}/external/glew/lib/Release/x64/glew32s.lib)
+set(BZC_PROJECT_LIBS ${BZC_PROJECT_LIBS} opengl32.lib)
+
+##############################################################################
+# truetype
+
+set(BZC_PROJECT_INCLUDES ${BZC_PROJECT_INCLUDES} ${CMAKE_SOURCE_DIR}/external/stb_truetype)
+
+##############################################################################
+# SRC
+
 set(BZC_PROJECT_SRCS
   ${CMAKE_SOURCE_DIR}/src/main.cpp
   ${CMAKE_SOURCE_DIR}/src/Network.h
   ${CMAKE_SOURCE_DIR}/src/Network.cpp
+  ${CMAKE_SOURCE_DIR}/src/ControlWindow.h
+  ${CMAKE_SOURCE_DIR}/src/ControlWindow.cpp
+  ${CMAKE_SOURCE_DIR}/src/Instances.h
+  ${CMAKE_SOURCE_DIR}/src/Instances.cpp
 )
 
 ##############################################################################

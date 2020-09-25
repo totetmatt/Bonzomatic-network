@@ -4,164 +4,82 @@
 #include <vector>
 
 #include "Network.h"
+#include "Instances.h"
+#include "ControlWindow.h"
+#include "jsonxx.h"
 
 // TMP
 #include <windows.h>
 
-int ScreenWidth = 0;
-int ScreenHeight = 0;
+// TODO:
+// bonzomatic: start with text editor hidden
+// button to toggle text code ?
+// full screen size in config file
 
-int NumberOfInstances = 2;
-std::vector<class Instance*> Instances;
 
-BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
-
-class Instance {
-
-public:
-	HWND hwnd = NULL;
-	STARTUPINFOA siStartupInfo;
-	PROCESS_INFORMATION piProcessInfo;
-
-	int Index = 0;
-
-	Instance()
-	{
-	}
-
-	bool Init(int InstanceIndex)
-	{
-		Index = InstanceIndex;
-
-		memset(&siStartupInfo, 0, sizeof(siStartupInfo));
-		memset(&piProcessInfo, 0, sizeof(piProcessInfo));
-		siStartupInfo.cb = sizeof(siStartupInfo);
-
-		std::string ShaderName = " shader=netshad_" + std::to_string(InstanceIndex) + ".glsl";
-
-		std::string CommandLine = std::string(" skipdialog") + ShaderName + std::string(" networkMode=grabber");
-		char* CommandString = new char[CommandLine.size() + 1];
-		strncpy_s(CommandString, (CommandLine.size() + 1), CommandLine.c_str(), (CommandLine.size()+1));
-
-		DWORD dwExitCode = 0;
-		if (CreateProcessA("Bonzomatic.exe",
-			CommandString, 0, 0, false,
-			CREATE_DEFAULT_ERROR_MODE, 0, 0,
-			&siStartupInfo, &piProcessInfo) != false)
-		{
-			//printf("[LAUNCHER] Created succesfull.\n");
-
-			/* Watch the process. */
-			int SecondsToWait = 1;
-			dwExitCode = WaitForSingleObject(piProcessInfo.hProcess, (SecondsToWait * 1000));
-
-			//printf("[LAUNCHER] Process initialized.\n");
-
-			EnumWindows(EnumWindowsProc, (LPARAM)(this));
-		}
-		else
-		{
-			/* CreateProcess failed */
-			size_t iReturnVal = GetLastError();
-			printf("[LAUNCHER] Error with creating process: %d\n", iReturnVal);
-			return false;
-		}
-
-		return true;
-	}
-
-	void Release()
-	{
-		/* Release handles */
-		CloseHandle(piProcessInfo.hProcess);
-		CloseHandle(piProcessInfo.hThread);
-	}
-};
-
-BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
+LARGE_INTEGER LastPCV = { 0 };
+double currentTime = 0.0;
+double WhatTime()
 {
-	DWORD dwPID;
-
-	GetWindowThreadProcessId(hwnd, &dwPID);
-
-	Instance* CurrentInstance = (Instance*)(lParam);
-	if (dwPID == CurrentInstance->piProcessInfo.dwProcessId) {
-		//printf("[LAUNCHER] PID found %d \n", dwPID);
-		CurrentInstance->hwnd = hwnd;
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-void FindDesktopResolution() {
-	RECT desktop;
-	const HWND hDesktop = GetDesktopWindow();
-	GetWindowRect(hDesktop, &desktop);
-	ScreenWidth = desktop.right - desktop.left;
-	ScreenHeight = desktop.bottom - desktop.top;
-}
-
-bool LaunchInstances()
-{
-	for (int i = 0; i < NumberOfInstances; ++i) {
-		Instance* NewInstance = new Instance();
-		if (NewInstance->Init(i)) {
-			Instances.push_back(NewInstance);
-		}
-		else {
-			delete NewInstance;
-		}
-    Sleep(500);
-	}
-
-	int NumColumn = ceil(sqrt(NumberOfInstances));
-	int NumRow = ceil(NumberOfInstances/NumColumn);
-	int ColumnSize = ScreenWidth / NumColumn;
-	int RowSize = ScreenHeight / NumRow;
-	
-	for (auto const& Cur : Instances) {
-		int PosX = (Cur->Index % NumColumn) * ColumnSize;
-		int PosY = floor(Cur->Index / NumColumn) * RowSize;
-	  SetWindowPos(Cur->hwnd, HWND_TOP, PosX, PosY, ColumnSize, RowSize, SWP_ASYNCWINDOWPOS);
-	  //SetWindowLong(Cur->hwnd, GWL_EXSTYLE, NULL);
-	  LONG WindowStyle = GetWindowLong(Cur->hwnd, GWL_STYLE);
-	  WindowStyle &= ~WS_CAPTION;
-	  WindowStyle &= ~WS_MAXIMIZEBOX;
-	  WindowStyle &= ~WS_THICKFRAME;
-	  SetWindowLong(Cur->hwnd, GWL_STYLE, WindowStyle);
+  LARGE_INTEGER count, freq;
+  if (!LastPCV.QuadPart) {
+    QueryPerformanceCounter(&LastPCV);
   }
+  QueryPerformanceCounter(&count);
+  QueryPerformanceFrequency(&freq);
 
-	return true;
-}
+  currentTime += (double)(count.QuadPart - LastPCV.QuadPart) / (double)(freq.QuadPart);
 
-void ReleaseInstances() {
-	for (auto const& Cur : Instances) {
-		Cur->Release();
-		delete Cur;
-	}
-	Instances.clear();
+  LastPCV = count;
+
+  return currentTime;
 }
 
 int main(int argc, const char *argv[])
 {
   printf("[LAUNCHER] Started \n");
+
+  std::string configFile = "launcher.json";
+  jsonxx::Object options;
+  FILE * fConf = fopen(configFile.c_str(), "rb");
+  if (fConf)
+  {
+    printf("Launcher config file found, parsing...\n");
+
+    char szConfig[65535];
+    memset(szConfig, 0, 65535);
+    fread(szConfig, 1, 65535, fConf);
+    fclose(fConf);
+
+    options.parse(szConfig);
+  }
+
   FindDesktopResolution();
 
-  Network::PrepareConnection();
-  Network::OpenConnection("ws://127.0.0.1:8000/");
+  //Network::PrepareConnection();
+  //Network::OpenConnection("ws://127.0.0.1:8000/");
 
-  //LaunchInstances();
+  LaunchInstances(options);
 
-  // Wait indefinitely
-  while (true) {
-    Network::Tick();
+  InitControlWindow(options);
+
+  double Time = WhatTime();
+  while (!WantsToQuit()) {
+    double NewTime = WhatTime();
+    float ElapsedTime = NewTime - Time;
+    Time = NewTime;
+    UpdateControlWindow(ElapsedTime);
+    //Network::Tick();
 	  //Sleep(30);
   }
+  CloseControlWindow();
+  
 
   ReleaseInstances();
 
-  Network::Release();
-  
+  //Network::Release();
+
+
+  exit(0);
   return 0;
 }
