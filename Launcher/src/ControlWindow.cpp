@@ -46,9 +46,46 @@ void window_size_callback(GLFWwindow* window, int width, int height)
   UpdateControlWindow(0);
 }
 
+
+void PressMosaic() {
+  StopDiaporama();
+}
+
+void ToggleDiaporama() {
+  if (IsDiapoLaunched()) {
+    StopDiaporama();
+  }
+  else {
+    StartDiaporama();
+  }
+}
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+  if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+    switch (key) {
+    case GLFW_KEY_M: PressMosaic(); break;
+    case GLFW_KEY_D: ToggleDiaporama(); break;
+    case GLFW_KEY_F11: ToggleTextEditor(); break;
+    case GLFW_KEY_0: ToggleFullscreen(10); break;
+    case GLFW_KEY_LEFT:
+    case GLFW_KEY_UP:
+      FullscreenPrev(); break;
+    case GLFW_KEY_RIGHT:
+    case GLFW_KEY_DOWN:
+      FullscreenNext(); break;
+    default:
+        if ((key >= GLFW_KEY_A) && (key <= GLFW_KEY_Z)) {
+          
+        }
+        if ((key >= GLFW_KEY_1) && (key <= GLFW_KEY_9)) {
+          ToggleFullscreen(key - GLFW_KEY_1);
+        }
+        break;
+    }
+  }
 }
+
 void character_callback(GLFWwindow* window, unsigned int codepoint)
 {
 }
@@ -162,6 +199,44 @@ void DrawQuad(int x, int y, int w, int h) {
 
 GLFWwindow* mWindow;
 
+void FocusControlWindow() {
+  glfwFocusWindow(mWindow);
+}
+
+struct ThemeColor {
+  float R = 1.0f;
+  float G = 1.0f;
+  float B = 1.0f;
+  float A = 1.0f;
+};
+ThemeColor ColorBackground = { 0.1,0.1,0.1,1 };
+ThemeColor ColorText = { 1,1,1,1 };
+ThemeColor ColorButton = { 0.2,0.2,0.2,1 };
+ThemeColor ColorButtonUncheck = { 0.8,0.2,0.2,1 };
+ThemeColor ColorButtonBorder = { 0.5,0.5,0.5,1 };
+ThemeColor ColorButtonBorderHover = { 1,0.5,0.5,1 };
+ThemeColor ColorButtonBorderPress = { 1,1,1,1 };
+
+ThemeColor ParseColor(const std::string& color) {
+  if (color.size() < 6 || color.size() > 8) return { 1,1,1 };
+  if (color.size() == 6)
+  {
+    std::string text = "0x" + color;
+    unsigned int v = std::stoul(text, 0, 16);
+    return { ((v & 0xFF0000) >> 16) / 255.0f, ((v & 0x00FF00) >> 8) / 255.0f, (v & 0x0000FF) / 255.0f, 1 };
+  }
+  else
+  {
+    std::string text = "0x" + color;
+    unsigned int v = std::stoul(text, 0, 16);
+    return { ((v & 0xFF0000) >> 16) / 255.0f, ((v & 0x00FF00) >> 8) / 255.0f, (v & 0x0000FF) / 255.0f, ((v & 0xFF000000) >> 24) / 255.0f };
+  }
+}
+
+void SetColor(ThemeColor Col) {
+  glColor4d(Col.R, Col.G, Col.B, Col.A);
+}
+
 bool InitControlWindow(jsonxx::Object options) {
   
 
@@ -176,6 +251,7 @@ bool InitControlWindow(jsonxx::Object options) {
   
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+  glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);  
 
   // Prevent fullscreen window minimize on focus loss
   glfwWindowHint(GLFW_AUTO_ICONIFY, GL_FALSE);
@@ -228,6 +304,24 @@ bool InitControlWindow(jsonxx::Object options) {
     }
   }
   InitFont(FontPath);
+  if (options.has<jsonxx::Object>("theme"))
+  {
+    const auto& theme = options.get<jsonxx::Object>("theme");
+    if (theme.has<jsonxx::String>("background"))
+      ColorBackground = ParseColor(theme.get<jsonxx::String>("background"));
+    if (theme.has<jsonxx::String>("text"))
+      ColorText = ParseColor(theme.get<jsonxx::String>("text"));
+    if (theme.has<jsonxx::String>("button"))
+      ColorButton = ParseColor(theme.get<jsonxx::String>("button"));
+    if (theme.has<jsonxx::String>("buttonUncheck"))
+      ColorButtonUncheck = ParseColor(theme.get<jsonxx::String>("buttonUncheck"));
+    if (theme.has<jsonxx::String>("buttonBorder"))
+      ColorButtonBorder = ParseColor(theme.get<jsonxx::String>("buttonBorder"));
+    if (theme.has<jsonxx::String>("buttonBorderHover"))
+      ColorButtonBorderHover = ParseColor(theme.get<jsonxx::String>("buttonBorderHover"));
+    if (theme.has<jsonxx::String>("buttonBorderPress"))
+      ColorButtonBorderPress = ParseColor(theme.get<jsonxx::String>("buttonBorderPress"));
+  }
 
   glViewport(0, 0, nWidth, nHeight);
 
@@ -245,18 +339,19 @@ bool Button(int x, int y, int w, int h, const char* Text) {
 
   if (IsInside) {
     if (mousebtn_press_left) {
-      glColor3d(1.0, 1.0, 1.0);
+      SetColor(ColorButtonBorderPress);
     } else {
-      glColor3d(1.0, 0.5, 0.5);
+      SetColor(ColorButtonBorderHover);
     }
   } else {
-    glColor3d(0.5, 0.5, 0.5);
+    SetColor(ColorButtonBorder);
   }
   DrawQuad(x, y, w, h);
-  glColor3d(0.2, 0.2, 0.2);
+
+  SetColor(ColorButton);
   DrawQuad(x+5, y+5, w-10, h-10);
 
-  glColor3d(1, 1, 1);
+  SetColor(ColorText);
   DrawText(x+10, y + FontSize/4 + h/2, Text);
 
   return mousebtn_press_left && IsInside;
@@ -268,24 +363,25 @@ bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
 
   if (IsInside) {
     if (mousebtn_press_left) {
-      glColor3d(1.0, 1.0, 1.0);
+      SetColor(ColorButtonBorderPress);
     }
     else {
-      glColor3d(1.0, 0.5, 0.5);
+      SetColor(ColorButtonBorderHover);
     }
   }
   else {
-    glColor3d(0.5, 0.5, 0.5);
+    SetColor(ColorButtonBorder);
   }
+
   DrawQuad(x, y, w, h);
   if (Status) {
-    glColor3d(0.2, 0.2, 0.2);
+    SetColor(ColorButton);
   } else {
-    glColor3d(0.8, 0.2, 0.2);
+    SetColor(ColorButtonUncheck);
   }
   DrawQuad(x + 5, y + 5, w - 10, h - 10);
 
-  glColor3d(1, 1, 1);
+  SetColor(ColorText);
   DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
 
   return mousebtn_press_left && IsInside;
@@ -312,7 +408,7 @@ void UpdateControlWindow(float ElapsedTime) {
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 
-  glClearColor(0.1, 0.1, 0.1, 1);
+  glClearColor(ColorBackground.R, ColorBackground.G, ColorBackground.B, 1);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
   /*
@@ -335,15 +431,11 @@ void UpdateControlWindow(float ElapsedTime) {
   int StartY = -ScroolPositionY;
   int PosY = StartY + 20;
   if (Button(20, PosY, nWidth - 40, 35, "Mosaic")) {
-    StopDiaporama();
+    PressMosaic();
   }
   PosY += 50;
   if (Button(20, PosY, nWidth - 40, 35, "Diaporama")) {
-    if (IsDiapoLaunched()) {
-      StopDiaporama();
-    } else {
-      StartDiaporama();
-    }
+    ToggleDiaporama();
   }
   UpdateDiaporama(ElapsedTime);
   if (IsDiapoLaunched()) {
@@ -358,11 +450,7 @@ void UpdateControlWindow(float ElapsedTime) {
   for(int i=0; i< Instances.size(); ++i) {
     Instance* Cur = Instances[i];
     if (Button(20, PosY, nWidth-60, 35, Cur->CoderName.c_str())) {
-      if (Cur->IsFullScreen) {
-        ChangeDisplay(DisplayAction::ShowMosaic, Cur);
-      } else {
-        ChangeDisplay(DisplayAction::SetFullscreen, Cur);
-      }
+      ToggleFullscreen(Cur);
     }
     if (ButtonCheck(nWidth-40, PosY, 30, 35, "X", !Cur->IsHidden)) {
       ToggleHidden(Cur);

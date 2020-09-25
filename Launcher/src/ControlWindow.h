@@ -6,3 +6,4 @@ bool InitControlWindow(jsonxx::Object options);
 void UpdateControlWindow(float ElapsedTime);
 bool WantsToQuit();
 void CloseControlWindow();
+void FocusControlWindow();

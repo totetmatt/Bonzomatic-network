@@ -36,6 +36,12 @@ enum class DisplayAction {
 void ChangeDisplay(DisplayAction Action, Instance* Target=nullptr);
 void ToggleHidden(Instance* Target);
 
+void FullscreenPrev();
+void FullscreenNext();
+void ToggleFullscreen(int index);
+void ToggleFullscreen(Instance* Cur);
+void ToggleTextEditor();
+
 void StartDiaporama();
 void StopDiaporama();
 void UpdateDiaporama(float ElapsedTime);

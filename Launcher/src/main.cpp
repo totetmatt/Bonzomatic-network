@@ -12,9 +12,14 @@
 #include <windows.h>
 
 // TODO:
-// bonzomatic: start with text editor hidden
-// button to toggle text code ?
-// full screen size in config file
+// display fullscreen coder's name somewhere so it can also be chroma keyed
+/*
+m for mosaic view, d for diaporama, then 1 through 0 for the fullscreen view of the person
+and arrow keys to go next/previous
+when you're in fullscreen of someone
+also the standard bonzomatic hotkeys like f12 to show just the shader, if you press them with the controller window on focus it should affect all viewports
+and g to toggle the grid view i guess
+*/
 
 
 LARGE_INTEGER LastPCV = { 0 };

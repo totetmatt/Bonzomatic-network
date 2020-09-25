@@ -1,10 +1,12 @@
 
 #include "Instances.h"
+#include "ControlWindow.h"
 
 #include <stdio.h>
 #include <string>
 #include <assert.h>
 
+bool MosaicFixed = false;
 
 int ScreenWidth = 0;
 int ScreenHeight = 0;
@@ -24,6 +26,8 @@ float FullScreenOffsetY = 0.1f;
 float FullScreenPercentageX = 0.8f;
 float FullScreenPercentageY = 0.8f;
 
+bool GlobalIsFullscreen = false;
+int LastFullScreenIndex = -1;
 
 int DelayInitWindows = 2000;
 std::string ConfigCommandLine = "skipdialog networkMode=grabber";
@@ -45,8 +49,85 @@ bool IsDiapoLaunched() { return DiapoLaunched; }
 int GetCurrentDiapo() { return DiapoCurrentIndex; }
 
 void FullscreenIndex(int index) {
-  if (index >= Instances.size()) return;
+  if (index<0 || index >= Instances.size()) return;
   ChangeDisplay(DisplayAction::SetFullscreen, Instances[index]);
+}
+
+void FullscreenPrev() {
+  int NewIndex = LastFullScreenIndex - 1;
+  while(NewIndex >=0 && NewIndex <Instances.size() && Instances[NewIndex]->IsHidden) {
+    --NewIndex;
+  }
+  FullscreenIndex(NewIndex);
+}
+
+void FullscreenNext() {
+  int NewIndex = LastFullScreenIndex + 1;
+  while (NewIndex >= 0 && NewIndex < Instances.size() && Instances[NewIndex]->IsHidden) {
+    ++NewIndex;
+  }
+  FullscreenIndex(NewIndex);
+}
+
+void ToggleFullscreen(int index) {
+  if (index >= Instances.size()) return;
+  Instance* Cur = Instances[index];
+  if (Cur->IsFullScreen) {
+    ChangeDisplay(DisplayAction::ShowMosaic, Cur);
+  }
+  else {
+    ChangeDisplay(DisplayAction::SetFullscreen, Cur);
+  }
+}
+
+void ToggleFullscreen(Instance* Cur) {
+  if (Cur->IsFullScreen) {
+    ChangeDisplay(DisplayAction::ShowMosaic, Cur);
+  }
+  else {
+    ChangeDisplay(DisplayAction::SetFullscreen, Cur);
+  }
+}
+
+void ToggleTextEditor() {
+  for (auto const& Cur : Instances) {
+    //PostMessage(Cur->hwnd, WM_KEYDOWN, VK_F11, 0);
+    //PostMessage(Cur->hwnd, WM_KEYUP, VK_F11, 0);
+    //SendMessage(Cur->hwnd, WM_KEYDOWN, VK_F11, 1);
+    //SendMessage(Cur->hwnd, WM_KEYUP, VK_F11, 1);
+
+    BringWindowToTop(Cur->hwnd);
+    SetForegroundWindow(Cur->hwnd);
+    SetFocus(Cur->hwnd);
+    
+    /*
+    LPARAM lParam = (1 | (57 << 16)); // OEM Code and Repeat for WM_KEYDOWN
+    WPARAM wParam = VK_F11;
+    //PostMessage(HWND_BROADCAST, WM_KEYDOWN, wParam, lParam); // Works
+    //PostMessage(Cur->hwnd, WM_KEYDOWN, wParam, lParam); // Doesn't Work
+    SendMessage(Cur->hwnd, WM_KEYDOWN, wParam, lParam); // Works, but I need Post
+    */
+    
+    //*
+
+    //Sleep(100);
+
+    INPUT ip;
+
+    ip.type = INPUT_KEYBOARD;
+    ip.ki.wScan = 0x057; // bonzomatic use a weird scancode for F11, not sure what it is
+    ip.ki.time = 0;
+    ip.ki.dwExtraInfo = 0;
+
+    ip.ki.wVk = VK_F11;
+    ip.ki.dwFlags = 0; // 0 for key press
+    SendInput(1, &ip, sizeof(INPUT));
+
+    ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+    SendInput(1, &ip, sizeof(INPUT));
+
+  }
+  FocusControlWindow();
 }
 
 void StartDiaporama() {
@@ -178,7 +259,9 @@ void FindDesktopResolution() {
 void ToggleHidden(Instance* Target) {
   Target->IsHidden = !Target->IsHidden;
   //ShowWindow(Target->hwnd, Target->IsHidden ? SW_HIDE : SW_SHOW);
-  ChangeDisplay(DisplayAction::ShowMosaic);
+  if (!GlobalIsFullscreen) {
+    ChangeDisplay(DisplayAction::ShowMosaic);
+  }
 }
 
 bool GridForceRatio = false;
@@ -217,10 +300,9 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
   int PixelScreenOffsetX = ScreenWidth * ScreenOffsetX;
   int PixelScreenOffsetY = ScreenHeight * ScreenOffsetY;
 
-  bool ShowOnlyHidden = true;
   int NumberOfInstances = 0;
   for (int i = 0; i < Instances.size(); ++i) {
-    if (!ShowOnlyHidden || !Instances[i]->IsHidden) {
+    if (MosaicFixed || !Instances[i]->IsHidden) {
       ++NumberOfInstances;
     }
   }
@@ -229,6 +311,13 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
   int NumRow = NumberOfInstances < 1 ? 1 : ceil(float(NumberOfInstances) / NumColumn);
   int ColumnSize = TableWidth / NumColumn;
   int RowSize = TableHeight / NumRow;
+
+  if (Action == DisplayAction::SetFullscreen) {
+    GlobalIsFullscreen = true;
+  }
+  if (Action == DisplayAction::FirstDisplay || Action == DisplayAction::ShowMosaic) {
+    GlobalIsFullscreen = false;
+  }
   
   int CurIndex = 0;
   for (auto const& Cur : Instances) {
@@ -254,6 +343,7 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
 
         SetInstancePositionRatio(Cur, PixelFullScreenOffsetX, PixelFullScreenOffsetY, FullWidth, FullHeight, FullForceRatio, FullWantedRatio);
         Cur->IsFullScreen = true;
+        LastFullScreenIndex = Cur->Index;
       } else {
         Cur->IsFullScreen = false;
         SetMinimalPosition(Cur);
@@ -268,10 +358,12 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
       SetWindowLong(Cur->hwnd, GWL_STYLE, WindowStyle);
     }
 
-    if (!ShowOnlyHidden || !Cur->IsHidden) {
+    if (MosaicFixed || !Cur->IsHidden) {
       ++CurIndex;
     }
   }
+
+  FocusControlWindow();
 }
 
 Instance* AddInstance(std::string CoderName) {
@@ -299,6 +391,7 @@ bool LaunchInstances(jsonxx::Object options)
     if (winjson.has<jsonxx::Number>("border_y")) ScreenBlankSpaceY = winjson.get<jsonxx::Number>("border_y");
     if (winjson.has<jsonxx::Boolean>("forceratio")) GridForceRatio = winjson.get<jsonxx::Boolean>("forceratio");
     if (winjson.has<jsonxx::Number>("wantedratio")) GridWantedRatio = winjson.get<jsonxx::Number>("wantedratio");
+    if (winjson.has<jsonxx::Boolean>("MosaicFixed")) MosaicFixed = winjson.get<jsonxx::Boolean>("MosaicFixed");
   }
 
   if (options.has<jsonxx::Object>("fullscreen"))
