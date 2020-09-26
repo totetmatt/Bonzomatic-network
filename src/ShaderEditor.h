@@ -64,6 +64,7 @@ struct SHADEREDITOR_THEME {
   unsigned int builtin          = 0xFF88FF44;
   unsigned int preprocessor     = 0xFFC0C0C0;
   unsigned int selection        = 0xC0CC9966;
+  unsigned int codername        = 0x80FFFFFF;
   unsigned int charBackground   = 0xC0000000;
   bool bUseCharBackground = false;
 };
@@ -71,6 +72,8 @@ struct SHADEREDITOR_THEME {
 struct SHADEREDITOR_OPTIONS {
   std::string sFontPath;
   int nFontSize;
+  std::string sCoderNameFontPath;
+  int nCoderNameFontSize;
   Scintilla::PRectangle rect;
   unsigned char nOpacity;
   bool bUseSpacesForTabs;
@@ -89,6 +92,8 @@ class ShaderEditor : public Scintilla::Editor
 
   std::string sFontFile;
   int nFontSize;
+  std::string sCoderNameFontFile;
+  int nCoderNameFontSize;
   unsigned char nOpacity;
   bool bUseSpacesForTabs;
   int nTabSize;
@@ -137,6 +142,7 @@ public:
 
   void SetReadOnly( bool );
   Scintilla::Font * GetTextFont();
+  Scintilla::Font * GetCoderTextFont();
     
 private:
   enum IndentationStatus {

@@ -252,6 +252,7 @@ int main(int argc, const char *argv[])
 
   int nDebugOutputHeight = 200;
   int nTexPreviewWidth = 64;
+  bool bAlwaysDisplayCoderName = false;
   float fFFTSmoothingFactor = 0.9f; // higher value, smoother FFT
   float fFFTSlightSmoothingFactor = 0.6f; // higher value, smoother FFT
   float fScrollXFactor = 1.0f;
@@ -302,12 +303,31 @@ int main(int argc, const char *argv[])
         editorOptions.sFontPath = fontpath;
       }
     }
+    editorOptions.sCoderNameFontPath = editorOptions.sFontPath;
+    editorOptions.nCoderNameFontSize = editorOptions.nFontSize;
+    if (options.has<jsonxx::Object>("codernamefont"))
+    {
+      if (options.get<jsonxx::Object>("codernamefont").has<jsonxx::Number>("size"))
+        editorOptions.nCoderNameFontSize = options.get<jsonxx::Object>("codernamefont").get<jsonxx::Number>("size");
+      if (options.get<jsonxx::Object>("codernamefont").has<jsonxx::String>("file"))
+      {
+        std::string fontpath = options.get<jsonxx::Object>("codernamefont").get<jsonxx::String>("file");
+        if (!Misc::FileExists(fontpath.c_str()))
+        {
+          printf("Font path (%s) for coder is invalid!\n", fontpath.c_str());
+          return -1;
+        }
+        editorOptions.sCoderNameFontPath = fontpath;
+      }
+    }
     if (options.has<jsonxx::Object>("gui"))
     {
       if (options.get<jsonxx::Object>("gui").has<jsonxx::Number>("outputHeight"))
         nDebugOutputHeight = options.get<jsonxx::Object>("gui").get<jsonxx::Number>("outputHeight");
       if (options.get<jsonxx::Object>("gui").has<jsonxx::Number>("texturePreviewWidth"))
         nTexPreviewWidth = options.get<jsonxx::Object>("gui").get<jsonxx::Number>("texturePreviewWidth");
+      if (options.get<jsonxx::Object>("gui").has<jsonxx::Boolean>("alwaysdisplaycodername"))
+        bAlwaysDisplayCoderName = options.get<jsonxx::Object>("gui").get<jsonxx::Boolean>("alwaysdisplaycodername");
       if (options.get<jsonxx::Object>("gui").has<jsonxx::Number>("opacity"))
         editorOptions.nOpacity = options.get<jsonxx::Object>("gui").get<jsonxx::Number>("opacity");
       if (options.get<jsonxx::Object>("gui").has<jsonxx::Boolean>("spacesForTabs"))
@@ -353,6 +373,8 @@ int main(int argc, const char *argv[])
         editorOptions.theme.preprocessor = ParseColor(theme.get<jsonxx::String>("preprocessor"));
       if (theme.has<jsonxx::String>("selection"))
         editorOptions.theme.selection = ParseColor(theme.get<jsonxx::String>("selection"));
+      if (theme.has<jsonxx::String>("codername"))
+        editorOptions.theme.codername = ParseColor(theme.get<jsonxx::String>("codername"));
       if (theme.has<jsonxx::String>("charBackground")) {
         editorOptions.theme.bUseCharBackground = true;
         editorOptions.theme.charBackground = ParseColor(theme.get<jsonxx::String>("charBackground"));
@@ -714,7 +736,7 @@ int main(int argc, const char *argv[])
       mShaderEditor.Paint();
       mDebugOutput.Paint();
 
-      Renderer::SetTextRenderingViewport( Scintilla::PRectangle(0,0,Renderer::nWidth,Renderer::nHeight) );
+      Renderer::SetTextRenderingViewport(Scintilla::PRectangle(0, 0, Renderer::nWidth, Renderer::nHeight));
 
       if (bTexPreviewVisible)
       {
@@ -724,14 +746,14 @@ int main(int argc, const char *argv[])
         for (std::map<std::string, Renderer::Texture*>::iterator it = textures.begin(); it != textures.end(); it++)
         {
           int y2 = y1 + nTexPreviewWidth * (it->second->height / (float)it->second->width);
-          Renderer::BindTexture( it->second );
+          Renderer::BindTexture(it->second);
           Renderer::RenderQuad(
-            Renderer::Vertex( x1, y1, 0xccFFFFFF, 0.0, 0.0 ),
-            Renderer::Vertex( x2, y1, 0xccFFFFFF, 1.0, 0.0 ),
-            Renderer::Vertex( x2, y2, 0xccFFFFFF, 1.0, 1.0 ),
-            Renderer::Vertex( x1, y2, 0xccFFFFFF, 0.0, 1.0 )
+            Renderer::Vertex(x1, y1, 0xccFFFFFF, 0.0, 0.0),
+            Renderer::Vertex(x2, y1, 0xccFFFFFF, 1.0, 0.0),
+            Renderer::Vertex(x2, y2, 0xccFFFFFF, 1.0, 1.0),
+            Renderer::Vertex(x1, y2, 0xccFFFFFF, 0.0, 1.0)
           );
-          surface->DrawTextNoClip( Scintilla::PRectangle(x1,y1,x2,y2), *mShaderEditor.GetTextFont(), y2 - 5.0, it->first.c_str(), (int)it->first.length(), 0xffFFFFFF, 0x00000000);
+          surface->DrawTextNoClip(Scintilla::PRectangle(x1, y1, x2, y2), *mShaderEditor.GetTextFont(), y2 - 5.0, it->first.c_str(), (int)it->first.length(), 0xffFFFFFF, 0x00000000);
           y1 = y2 + nMargin;
         }
       }
@@ -746,17 +768,29 @@ int main(int argc, const char *argv[])
       char frame_ms[10];
       snprintf(frame_ms, sizeof(frame_ms), "%.2f", (time - oldtime) * 1000.0f);
       char frame_fps[10];
-      snprintf(frame_fps, sizeof(frame_fps), "%.2f", 1.0f/(time - oldtime));
-      std::string sHelp = "Bonzomatic GLSL ( ";
+      snprintf(frame_fps, sizeof(frame_fps), "%.2f", 1.0f / (time - oldtime));
+      std::string sHelp = "F2 - see textures   F5 or Ctrl-R - recompile   F11 - hide GUI";
+      /*
+      sHelp += " (";
       sHelp += frame_ms;
       sHelp += "ms ";
       sHelp += frame_fps;
-      sHelp += "fps )";
+      sHelp += "fps)";
+      */
       surface->DrawTextNoClip(Scintilla::PRectangle(20, Renderer::nHeight - 20, 100, Renderer::nHeight), *mShaderEditor.GetTextFont(), Renderer::nHeight - 5.0, sHelp.c_str(), (int)sHelp.length(), 0x80FFFFFF, 0x00000000);
+    }
 
+    if (bShowGui || bAlwaysDisplayCoderName)
+    {
       if(Network::IsNetworkEnabled()) {
         
+        if (!bShowGui) {
+          // when editor is not shown, we need to update rendering viewport manually
+          Renderer::SetTextRenderingViewport(Scintilla::PRectangle(0, 0, Renderer::nWidth, Renderer::nHeight));
+        }
+
         std::string Status = Network::GetNickName();
+        /*
         if(Network::IsConnected()) {
           if(Network::IsLive()) {
             Status += " - Live";
@@ -766,17 +800,20 @@ int main(int argc, const char *argv[])
         } else {
           Status += " - Not Connected";
         }
-        std::string Mode = Network::IsGrabber() ? "Grabbing from" : "Sending to";
+        */
+        
+        Scintilla::Font* CoderFont = mShaderEditor.GetCoderTextFont();
+        int CoderFontSize = editorOptions.nCoderNameFontSize;
 
-        Scintilla::XYPOSITION WidthText = surface->WidthText(*mShaderEditor.GetTextFont(), Status.c_str(), (int)Status.length());
-        Scintilla::XYPOSITION WidthMode = surface->WidthText(*mShaderEditor.GetTextFont(), Mode.c_str(), (int)Mode.length());
-        Scintilla::XYPOSITION RightPosition = Renderer::nWidth - 27 - TexPreviewOffset;
-        Scintilla::XYPOSITION BaseY = Renderer::nHeight - 22;
+        Scintilla::XYPOSITION WidthText = surface->WidthText(*CoderFont, Status.c_str(), (int)Status.length());
+        Scintilla::XYPOSITION RightPosition = Renderer::nWidth - CoderFontSize*0.35 - TexPreviewOffset;
+        Scintilla::XYPOSITION LeftPosition = RightPosition - WidthText - CoderFontSize * 0.25;
+        Scintilla::XYPOSITION BaseY = Renderer::nHeight - CoderFontSize * 1.1;
 
-        surface->RectangleDraw(Scintilla::PRectangle(RightPosition - WidthText - 10, BaseY, RightPosition + 25, BaseY+20), 0x00000000, 0x80000000);
-        surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText, BaseY, RightPosition, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Status.c_str(), (int)Status.length(), 0x80FFFFFF, 0xA0FFFFFF);
-        surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText - WidthMode - 15, BaseY, RightPosition - WidthText, BaseY+20), *mShaderEditor.GetTextFont(), BaseY + 15, Mode.c_str(), (int)Mode.length(), 0x80FFFFFF, 0xA0FFFFFF);
-        surface->RectangleDraw(Scintilla::PRectangle(RightPosition + 6 , BaseY+1, RightPosition + 24, BaseY+19), 0x00000000, Network::IsLive() ? 0x8080FF80 : 0x80000000);
+        surface->RectangleDraw(Scintilla::PRectangle(LeftPosition, BaseY, RightPosition + CoderFontSize * 0.25, BaseY + CoderFontSize), 0x00000000, 0x80000000);
+        surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText, BaseY, RightPosition, BaseY + CoderFontSize), *CoderFont, BaseY + CoderFontSize*0.75, Status.c_str(), (int)Status.length(), editorOptions.theme.codername, 0xFFFFFFFF);
+        if(!Network::IsLive()) // in case of connection issues
+          surface->RectangleDraw(Scintilla::PRectangle(LeftPosition - 20, BaseY, LeftPosition, BaseY + CoderFontSize), 0x00000000, 0x808080FF);
       }
     }
 

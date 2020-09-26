@@ -85,6 +85,8 @@ public:
   const char *GetSubStyleBases();
 };
 
+Font CoderFont;
+
 static unsigned int wndID = 1;
 void ShaderEditor::Initialise()
 {
@@ -105,6 +107,9 @@ void ShaderEditor::Initialise()
   SetAStyle( STYLE_BRACELIGHT,  0xFF00FF00, BACKGROUND( 0x000000 ), nFontSize, sFontFile.c_str() );
   SetAStyle( STYLE_BRACEBAD,    0xFF0000FF, BACKGROUND( 0x000000 ), nFontSize, sFontFile.c_str() );
   SetAStyle( STYLE_INDENTGUIDE, 0xFFC0C0C0, BACKGROUND( 0x000000 ), nFontSize, sFontFile.c_str() );
+
+  FontParameters CoderFontParam(sCoderNameFontFile.c_str(), nCoderNameFontSize);
+  CoderFont.Create(CoderFontParam);
 
   WndProc(SCI_SETFOLDMARGINCOLOUR,   1, BACKGROUND( 0x1A1A1A ));
   WndProc(SCI_SETFOLDMARGINHICOLOUR, 1, BACKGROUND( 0x1A1A1A ));
@@ -184,6 +189,8 @@ void ShaderEditor::Initialise( SHADEREDITOR_OPTIONS &options )
 {
   nFontSize = options.nFontSize;
   sFontFile = options.sFontPath;
+  sCoderNameFontFile = options.sCoderNameFontPath;
+  nCoderNameFontSize = options.nCoderNameFontSize;
   nOpacity = options.nOpacity;
   bUseSpacesForTabs = options.bUseSpacesForTabs;
   nTabSize = options.nTabSize;
@@ -395,6 +402,11 @@ void ShaderEditor::ButtonUp( Scintilla::Point pt, unsigned int curTime, bool ctr
 Font * ShaderEditor::GetTextFont()
 {
   return &vs.styles[ STYLE_DEFAULT ].font;
+}
+
+Font * ShaderEditor::GetCoderTextFont()
+{
+  return &CoderFont;
 }
 
 void ShaderEditor::SetPosition( Scintilla::PRectangle rect )
