@@ -62,12 +62,16 @@ void ToggleDiaporama() {
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+  bool CtrlPressed = (mods & GLFW_MOD_CONTROL);
+  int FullIndexOffset = CtrlPressed ? 10 : 0;
   if (action == GLFW_PRESS || action == GLFW_REPEAT) {
     switch (key) {
-    case GLFW_KEY_M: PressMosaic(); break;
+    case GLFW_KEY_ESCAPE:
+    case GLFW_KEY_M:
+      PressMosaic(); break;
     case GLFW_KEY_D: ToggleDiaporama(); break;
     case GLFW_KEY_F11: ToggleTextEditor(); break;
-    case GLFW_KEY_0: ToggleFullscreen(10); break;
+    case GLFW_KEY_0: ToggleFullscreen(FullIndexOffset + 9); break;
     case GLFW_KEY_LEFT:
     case GLFW_KEY_UP:
       FullscreenPrev(); break;
@@ -79,7 +83,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
           
         }
         if ((key >= GLFW_KEY_1) && (key <= GLFW_KEY_9)) {
-          ToggleFullscreen(key - GLFW_KEY_1);
+          ToggleFullscreen(FullIndexOffset + key - GLFW_KEY_1);
         }
         break;
     }

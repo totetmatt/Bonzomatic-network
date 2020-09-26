@@ -13,6 +13,10 @@
 
 // TODO:
 // display fullscreen coder's name somewhere so it can also be chroma keyed
+// bonzomatic display mode with big coder names even in no-editor mode
+// button add to add a coder at runtime
+// button remove to remove a coder at runtime
+// ** shortcut: pressing ctrl + 1-0 display coder 11-20
 /*
 m for mosaic view, d for diaporama, then 1 through 0 for the fullscreen view of the person
 and arrow keys to go next/previous
@@ -21,6 +25,17 @@ also the standard bonzomatic hotkeys like f12 to show just the shader, if you pr
 and g to toggle the grid view i guess
 */
 
+// futur:
+// connect to server (local as test first) to get coder name at runtime
+// option mode to open new window when a new coder appear
+// option mode to close window of inactive coder for more that n seconds
+// ask Alkama <3 to change server so you can connect to the room and get all the coders messages
+
+// may need:
+// whitelist/blacklist to avoid bad player
+// server that reserve coder names so people cannot steel channels
+//    ex: server remember ip/connection id of the last person that streamed in a room for n seconds
+//        if someone else stream, their messages are not propagated
 
 LARGE_INTEGER LastPCV = { 0 };
 double currentTime = 0.0;
