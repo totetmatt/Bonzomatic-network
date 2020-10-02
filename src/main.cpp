@@ -812,8 +812,15 @@ int main(int argc, const char *argv[])
 
         surface->RectangleDraw(Scintilla::PRectangle(LeftPosition, BaseY, RightPosition + CoderFontSize * 0.25, BaseY + CoderFontSize), 0x00000000, 0x80000000);
         surface->DrawTextNoClip(Scintilla::PRectangle(RightPosition - WidthText, BaseY, RightPosition, BaseY + CoderFontSize), *CoderFont, BaseY + CoderFontSize*0.75, Status.c_str(), (int)Status.length(), editorOptions.theme.codername, 0xFFFFFFFF);
-        if(!Network::IsLive()) // in case of connection issues
+        if (!Network::IsLive()) // in case of connection issues
+        {
           surface->RectangleDraw(Scintilla::PRectangle(LeftPosition - 20, BaseY, LeftPosition, BaseY + CoderFontSize), 0x00000000, 0x808080FF);
+        } else {
+          // avoid a strange triangular glitch on coder name when it's the last thing drawn
+          surface->PenColour(0);
+          surface->MoveTo(0, 0);
+          surface->LineTo(0, 0);
+        } 
       }
     }
 
