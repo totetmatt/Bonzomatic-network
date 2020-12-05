@@ -20,6 +20,7 @@ public:
   Instance();
   bool Init(int InstanceIndex, std::string CoderName);
   void Release();
+  void Restart();
 };
 
 bool LaunchInstances(jsonxx::Object options);

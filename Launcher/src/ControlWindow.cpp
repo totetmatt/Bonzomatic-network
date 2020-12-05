@@ -453,11 +453,14 @@ void UpdateControlWindow(float ElapsedTime) {
 
   for(int i=0; i< Instances.size(); ++i) {
     Instance* Cur = Instances[i];
-    if (Button(20, PosY, nWidth-60, 35, Cur->CoderName.c_str())) {
+    if (Button(20, PosY, nWidth-100, 35, Cur->CoderName.c_str())) {
       ToggleFullscreen(Cur);
     }
-    if (ButtonCheck(nWidth-40, PosY, 30, 35, "X", !Cur->IsHidden)) {
+    if (ButtonCheck(nWidth-80, PosY, 30, 35, "X", !Cur->IsHidden)) {
       ToggleHidden(Cur);
+    }
+    if (ButtonCheck(nWidth - 40, PosY, 30, 35, "R", true)) {
+      if (Cur) Cur->Restart();
     }
     if (Cur->IsFullScreen) {
       glColor3d(0, 1, 0);

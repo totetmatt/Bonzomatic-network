@@ -231,6 +231,13 @@ void Instance::Release()
   CloseHandle(piProcessInfo.hThread);
 }
 
+void Instance::Restart()
+{
+  Release();
+  Init(Index, CoderName);
+
+  ChangeDisplay(DisplayAction::FirstDisplay);
+}
 
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 {
@@ -285,7 +292,7 @@ void SetInstancePositionRatio(Instance* Cur, int PosX, int PosY, int Width, int 
   }
 
   SetWindowPos(Cur->hwnd, HWND_TOP, PosX, PosY, Width, Height, SWP_ASYNCWINDOWPOS);
-  ShowWindow(Cur->hwnd, SW_SHOW);
+  ShowWindow(Cur->hwnd, SW_SHOWNOACTIVATE);
 }
 
 void SetMinimalPosition(Instance* Cur) {
@@ -317,6 +324,10 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
   }
   if (Action == DisplayAction::FirstDisplay || Action == DisplayAction::ShowMosaic) {
     GlobalIsFullscreen = false;
+  }
+
+  if (Target) {
+    DiapoCurrentIndex = Target->Index;
   }
   
   int CurIndex = 0;
@@ -362,8 +373,6 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
       ++CurIndex;
     }
   }
-
-  FocusControlWindow();
 }
 
 Instance* AddInstance(std::string CoderName) {
