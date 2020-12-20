@@ -298,7 +298,8 @@ namespace Network
       ShaderHasBeenCompiled=true;
     }
 		OutShader.NeedRecompile = NeedRecompile;
-    float duration = max(0.0f,NetworkTime - LastShaderGrabTime);
+    float duration = NetworkTime - LastShaderGrabTime;
+    if (duration < 0.0f) duration = 0.0f;
     LastShaderGrabTime = NetworkTime;
 
     if (GrabMidiControls && Data.has<jsonxx::Object>("Parameters")) {
@@ -308,7 +309,12 @@ namespace Network
         float goalValue = it->second->number_value_;
         auto cache = networkParamCache.find(it->first);
         if (cache == networkParamCache.end()) {
-          networkParamCache[it->first] = { goalValue,goalValue };
+          ShaderParamCache newCache;
+          newCache.lastValue = goalValue;
+          newCache.currentValue = goalValue;
+          newCache.goalValue = goalValue;
+          newCache.duration = duration;
+          networkParamCache[it->first] = newCache;
           cache = networkParamCache.find(it->first);
         }
         ShaderParamCache& cur = cache->second;
