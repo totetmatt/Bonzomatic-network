@@ -18,6 +18,7 @@ namespace Network
   float LastShaderGrabTime = -1000.0f;
 	float ShaderUpdateInterval = 0.3f;
 
+  bool SyncTimeWithSender = true;
   bool NewTimeToGrab = false;
   float GrabShaderTime = 0.0;
 
@@ -100,6 +101,8 @@ namespace Network
 			jsonxx::Object netjson = o.get<jsonxx::Object>("network");
 			if (netjson.has<jsonxx::Number>("updateInterval"))
 				ShaderUpdateInterval = netjson.get<jsonxx::Number>("updateInterval");
+      if (netjson.has<jsonxx::Boolean>("SyncTimeWithSender"))
+        SyncTimeWithSender = netjson.get<jsonxx::Boolean>("SyncTimeWithSender");
 		}
     	bNetworkEnabled = DialogSettings->EnableNetwork;
       ServerURL = DialogSettings->ServerURL;
@@ -285,7 +288,7 @@ namespace Network
 
   bool AdjustShaderTimeOffset(float time, float& timeOffset) {
     if (NetworkMode != NetMode_Grabber) return false;
-    if (!NewTimeToGrab) return false;
+    if (!NewTimeToGrab || !SyncTimeWithSender) return false;
     NewTimeToGrab = false;
     float MaxTimeOffsetAllowed = 2.0f;
     if (abs(time + timeOffset - GrabShaderTime) < MaxTimeOffsetAllowed) {
