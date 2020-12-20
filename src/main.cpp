@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -232,6 +233,9 @@ int main(int argc, const char *argv[])
   std::map<std::string,Renderer::Texture*> textures;
   std::map<int,std::string> midiRoutes;
 
+  jsonxx::Object networkShaderParameters;
+  std::map<std::string, Network::ShaderParamCache> networkParamCache;
+  
   const char * szDefaultFontPath = Misc::GetDefaultFontPath();
 
   SHADEREDITOR_OPTIONS editorOptions;
@@ -520,6 +524,7 @@ int main(int argc, const char *argv[])
     bool newShader = false;
     bool needEditorUpdate = false;
     float time = Timer::GetTime() / 1000.0; // seconds
+    float deltaTime = (time - oldtime);
     Renderer::StartFrame();
 
     // Networking
@@ -535,7 +540,14 @@ int main(int argc, const char *argv[])
 	    NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
       int TopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
       NewMessage.FirstVisibleLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, TopLine, 0);
-      Network::SendShader(NewMessage, shaderTimeOffset);
+      // midi network parameter update
+      if(Network::CanSendMidiControls()) {
+        for (std::map<int, std::string>::iterator it = midiRoutes.begin(); it != midiRoutes.end(); it++)
+        {
+          networkShaderParameters << it->second << MIDI::GetCCValue(it->first);
+        }
+      }
+      Network::SendShader(NewMessage, shaderTimeOffset, networkShaderParameters);
 	  }
     
     for(int i=0; i<Renderer::mouseEventBufferCount; i++)
@@ -564,7 +576,7 @@ int main(int argc, const char *argv[])
 
     if (Network::HasNewShader()) {
 		  Network::ShaderMessage NewMessage;
-		  if(Network::GetNewShader(NewMessage)) {
+		  if(Network::GetNewShader(NewMessage, networkParamCache)) {
 
 			  int PreviousTopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
         int PreviousTopDocLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, PreviousTopLine, 0);
@@ -639,7 +651,14 @@ int main(int argc, const char *argv[])
 		      NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
           int TopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
           NewMessage.FirstVisibleLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, TopLine, 0);
-		      Network::SendShader(NewMessage, shaderTimeOffset);
+          // midi network parameter update
+          if (Network::CanSendMidiControls()) {
+            for (std::map<int, std::string>::iterator it = midiRoutes.begin(); it != midiRoutes.end(); it++)
+            {
+              networkShaderParameters << it->second << MIDI::GetCCValue(it->first);
+            }
+          }
+		      Network::SendShader(NewMessage, shaderTimeOffset, networkShaderParameters);
         }
 
         if (Renderer::ReloadShader( szShader, (int)strlen(szShader), szError, 4096 ))
@@ -686,11 +705,24 @@ int main(int argc, const char *argv[])
     Renderer::SetShaderConstant( "fGlobalTime", time + shaderTimeOffset);
     Renderer::SetShaderConstant( "v2Resolution", Renderer::nWidth, Renderer::nHeight );
 
-    for (std::map<int,std::string>::iterator it = midiRoutes.begin(); it != midiRoutes.end(); it++)
-    {
-      Renderer::SetShaderConstant( it->second.c_str(), MIDI::GetCCValue( it->first ) );
+    if (Network::CanGrabMidiControls()) {
+      for (auto it = networkParamCache.begin(); it != networkParamCache.end(); it++)
+      {
+        Network::ShaderParamCache& cache = it->second;
+        float motion = (cache.goalValue - cache.lastValue) * deltaTime / std::max(0.001f, cache.duration);
+        if (motion > 0.0f) {
+          cache.currentValue = std::min(cache.currentValue + motion, cache.goalValue);
+        } else {
+          cache.currentValue = std::max(cache.currentValue + motion, cache.goalValue);
+        } 
+        Renderer::SetShaderConstant(it->first.c_str(), cache.currentValue);
+      }
+    } else {
+      for (std::map<int, std::string>::iterator it = midiRoutes.begin(); it != midiRoutes.end(); it++)
+      {
+        Renderer::SetShaderConstant(it->second.c_str(), MIDI::GetCCValue(it->first));
+      }
     }
-
 
     if (FFT::GetFFT(fftData))
     {
@@ -774,9 +806,9 @@ int main(int argc, const char *argv[])
       */
 
       char frame_ms[10];
-      snprintf(frame_ms, sizeof(frame_ms), "%.2f", (time - oldtime) * 1000.0f);
+      snprintf(frame_ms, sizeof(frame_ms), "%.2f", deltaTime * 1000.0f);
       char frame_fps[10];
-      snprintf(frame_fps, sizeof(frame_fps), "%.2f", 1.0f / (time - oldtime));
+      snprintf(frame_fps, sizeof(frame_fps), "%.2f", 1.0f / deltaTime);
       std::string sHelp = "F2 - see textures   F5 or Ctrl-R - recompile   F11 - hide GUI";
       /*
       sHelp += " (";

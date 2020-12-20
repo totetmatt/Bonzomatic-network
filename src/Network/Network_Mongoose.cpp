@@ -22,6 +22,9 @@ namespace Network
   bool NewTimeToGrab = false;
   float GrabShaderTime = 0.0;
 
+  bool SendMidiControls = true;
+  bool GrabMidiControls = true;
+
   bool TryingToConnect = false;
   float ReconnectionInterval = 1.0f;
   float LastReconnectionAttempt = 0.0f;
@@ -103,6 +106,10 @@ namespace Network
 				ShaderUpdateInterval = netjson.get<jsonxx::Number>("updateInterval");
       if (netjson.has<jsonxx::Boolean>("SyncTimeWithSender"))
         SyncTimeWithSender = netjson.get<jsonxx::Boolean>("SyncTimeWithSender");
+      if (netjson.has<jsonxx::Boolean>("SendMidiControls"))
+        SendMidiControls = netjson.get<jsonxx::Boolean>("SendMidiControls");
+      if (netjson.has<jsonxx::Boolean>("GrabMidiControls"))
+        GrabMidiControls = netjson.get<jsonxx::Boolean>("GrabMidiControls");
 		}
     	bNetworkEnabled = DialogSettings->EnableNetwork;
       ServerURL = DialogSettings->ServerURL;
@@ -160,7 +167,7 @@ namespace Network
 		mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, strlen(msg)+1);
 	}
 
-	void SendShader(ShaderMessage NewMessage, float shaderOffset) {
+	void SendShader(ShaderMessage NewMessage, float shaderOffset, const jsonxx::Object& shaderParameters) {
 		if (!bNetworkLaunched) return;
 		if (NetworkMode != NetMode_Sender) return;
 
@@ -175,7 +182,8 @@ namespace Network
     Data << "RoomName" << RoomName;
     Data << "NickName" << NickName;
     Data << "ShaderTime" << NetworkTime + shaderOffset;
-
+    if(SendMidiControls) Data << "Parameters" << shaderParameters;
+    
 		jsonxx::Object Message = Object("Data", Data);
 		std::string TextJson = Message.json();
 		//printf("JSON: %s\n", TextJson.c_str());
@@ -262,12 +270,20 @@ namespace Network
     return NetworkModeString;
   }
 
+  bool CanSendMidiControls() {
+    return SendMidiControls && bNetworkLaunched && NetworkMode == NetMode_Sender;
+  }
+
+  bool CanGrabMidiControls() {
+    return GrabMidiControls && bNetworkLaunched && NetworkMode == NetMode_Grabber;
+  }
+
 	bool HasNewShader() {
 		if (NetworkMode != NetMode_Grabber) return false;
 		return NewShaderToGrab;
 	}
 
-	bool GetNewShader(ShaderMessage& OutShader) {
+	bool GetNewShader(ShaderMessage& OutShader, std::map<std::string, ShaderParamCache>& networkParamCache) {
 		if (NetworkMode != NetMode_Grabber) return false;
 		NewShaderToGrab = false;
 		jsonxx::Object Data = LastGrabberShader.get<jsonxx::Object>("Data");
@@ -282,7 +298,25 @@ namespace Network
       ShaderHasBeenCompiled=true;
     }
 		OutShader.NeedRecompile = NeedRecompile;
+    float duration = max(0.0f,NetworkTime - LastShaderGrabTime);
     LastShaderGrabTime = NetworkTime;
+
+    if (GrabMidiControls && Data.has<jsonxx::Object>("Parameters")) {
+      const std::map<std::string, jsonxx::Value*>& shadParams = Data.get<jsonxx::Object>("Parameters").kv_map();
+      for (auto it = shadParams.begin(); it != shadParams.end(); it++)
+      {
+        float goalValue = it->second->number_value_;
+        auto cache = networkParamCache.find(it->first);
+        if (cache == networkParamCache.end()) {
+          networkParamCache[it->first] = { goalValue,goalValue };
+          cache = networkParamCache.find(it->first);
+        }
+        ShaderParamCache& cur = cache->second;
+        cur.lastValue = cur.currentValue;
+        cur.goalValue = goalValue;
+        cur.duration = duration;
+      }
+    }
 		return true;
 	}
 
