@@ -535,7 +535,7 @@ int main(int argc, const char *argv[])
 	    NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
       int TopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
       NewMessage.FirstVisibleLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, TopLine, 0);
-      Network::SendShader(NewMessage);
+      Network::SendShader(NewMessage, shaderTimeOffset);
 	  }
     
     for(int i=0; i<Renderer::mouseEventBufferCount; i++)
@@ -622,6 +622,11 @@ int main(int argc, const char *argv[])
       {
         bGrabberFollowCaret = !bGrabberFollowCaret;
       }
+      else if (Renderer::keyEventBuffer[i].scanCode == 285) // F4
+      {
+        // adjust offset so that time restarts from 0
+        shaderTimeOffset = -time;
+      }
       else if (Renderer::keyEventBuffer[i].scanCode == 286 || (Renderer::keyEventBuffer[i].ctrl && Renderer::keyEventBuffer[i].scanCode == 'r')) // F5
       {
         mShaderEditor.GetText(szShader,65535);
@@ -634,7 +639,7 @@ int main(int argc, const char *argv[])
 		      NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
           int TopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
           NewMessage.FirstVisibleLine = mShaderEditor.WndProc(SCI_DOCLINEFROMVISIBLE, TopLine, 0);
-		      Network::SendShader(NewMessage);
+		      Network::SendShader(NewMessage, shaderTimeOffset);
         }
 
         if (Renderer::ReloadShader( szShader, (int)strlen(szShader), szError, 4096 ))

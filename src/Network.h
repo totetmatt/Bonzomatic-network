@@ -15,7 +15,7 @@ namespace Network
   void PrepareConnection();
   void OpenConnection();
   void BroadcastMessage(const char* msg);
-  void SendShader(ShaderMessage NewMessage);
+  void SendShader(ShaderMessage NewMessage, float shaderOffset);
   bool IsShaderNeedUpdate();
   bool IsNetworkEnabled();
   bool IsConnected();

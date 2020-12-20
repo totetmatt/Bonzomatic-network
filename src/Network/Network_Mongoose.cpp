@@ -157,7 +157,7 @@ namespace Network
 		mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, strlen(msg)+1);
 	}
 
-	void SendShader(ShaderMessage NewMessage) {
+	void SendShader(ShaderMessage NewMessage, float shaderOffset) {
 		if (!bNetworkLaunched) return;
 		if (NetworkMode != NetMode_Sender) return;
 
@@ -171,7 +171,7 @@ namespace Network
     Data << "FirstVisibleLine" << NewMessage.FirstVisibleLine;
     Data << "RoomName" << RoomName;
     Data << "NickName" << NickName;
-    Data << "ShaderTime" << NetworkTime;
+    Data << "ShaderTime" << NetworkTime + shaderOffset;
 
 		jsonxx::Object Message = Object("Data", Data);
 		std::string TextJson = Message.json();
