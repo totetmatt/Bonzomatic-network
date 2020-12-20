@@ -25,6 +25,7 @@ namespace Network
   std::string GetModeString();
   bool HasNewShader();
   bool GetNewShader(ShaderMessage& OutShader);
+  bool AdjustShaderTimeOffset(float time, float& timeOffset);
   void Tick(float time);
   void Release();
 }

@@ -18,6 +18,9 @@ namespace Network
   float LastShaderGrabTime = -1000.0f;
 	float ShaderUpdateInterval = 0.3f;
 
+  bool NewTimeToGrab = false;
+  float GrabShaderTime = 0.0;
+
   bool TryingToConnect = false;
   float ReconnectionInterval = 1.0f;
   float LastReconnectionAttempt = 0.0f;
@@ -168,6 +171,7 @@ namespace Network
     Data << "FirstVisibleLine" << NewMessage.FirstVisibleLine;
     Data << "RoomName" << RoomName;
     Data << "NickName" << NickName;
+    Data << "ShaderTime" << NetworkTime;
 
 		jsonxx::Object Message = Object("Data", Data);
 		std::string TextJson = Message.json();
@@ -192,10 +196,11 @@ namespace Network
 		std::string TextJson = std::string((char*)data);
 		//printf("JSON: %s\n", TextJson.c_str());
 		jsonxx::Object NewShader;
+    jsonxx::Object Data;
 		bool ErrorFound = false;
 		if (NewShader.parse(TextJson)) {
 			if(NewShader.has<jsonxx::Object>("Data")) {
-				jsonxx::Object Data = NewShader.get<jsonxx::Object>("Data");
+        Data = NewShader.get<jsonxx::Object>("Data");
 				if (!Data.has<jsonxx::String>("Code")) ErrorFound = true;
 				if (!Data.has<jsonxx::Number>("Caret")) ErrorFound = true;
 				if (!Data.has<jsonxx::Number>("Anchor")) ErrorFound = true;
@@ -214,6 +219,14 @@ namespace Network
 
 		LastGrabberShader = NewShader;
 		NewShaderToGrab = true;
+
+    if (Data.has<jsonxx::Number>("ShaderTime")) {
+      NewTimeToGrab = true;
+      GrabShaderTime = Data.get<jsonxx::Number>("ShaderTime");
+    }
+    else {
+      NewTimeToGrab = false;
+    }
 	}
 
   bool IsNetworkEnabled() {
@@ -269,6 +282,20 @@ namespace Network
     LastShaderGrabTime = NetworkTime;
 		return true;
 	}
+
+  bool AdjustShaderTimeOffset(float time, float& timeOffset) {
+    if (NetworkMode != NetMode_Grabber) return false;
+    if (!NewTimeToGrab) return false;
+    NewTimeToGrab = false;
+    float MaxTimeOffsetAllowed = 2.0f;
+    if (abs(time + timeOffset - GrabShaderTime) < MaxTimeOffsetAllowed) {
+      // time difference is too low to care about
+      return false;
+    }
+    // adjust time offset
+    timeOffset = GrabShaderTime - time;
+    return true;
+  }
 
 	void Tick(float time) {
     NetworkTime = time;

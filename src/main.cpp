@@ -511,6 +511,7 @@ int main(int argc, const char *argv[])
   bool bGrabberFollowCaret = true;
   bool bShowGui = true;
   Timer::Start();
+  float shaderTimeOffset = 0;
   float fNextTick = 0.1f;
   float oldtime = Timer::GetTime() / 1000.0;  
   while (!Renderer::WantsToQuit())
@@ -605,6 +606,8 @@ int main(int argc, const char *argv[])
 					  mDebugOutput.SetText(szError);
 				  }
 			  }
+
+        Network::AdjustShaderTimeOffset(time, shaderTimeOffset);
 		  }
     }
 
@@ -675,7 +678,7 @@ int main(int argc, const char *argv[])
     }
     Renderer::keyEventBufferCount = 0;
 
-    Renderer::SetShaderConstant( "fGlobalTime", time );
+    Renderer::SetShaderConstant( "fGlobalTime", time + shaderTimeOffset);
     Renderer::SetShaderConstant( "v2Resolution", Renderer::nWidth, Renderer::nHeight );
 
     for (std::map<int,std::string>::iterator it = midiRoutes.begin(); it != midiRoutes.end(); it++)
