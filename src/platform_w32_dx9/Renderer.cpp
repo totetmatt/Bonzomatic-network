@@ -222,6 +222,7 @@ namespace Renderer
 //         case VK_RIGHTBRACKET: sciKey = ']';           break;
         case VK_F2:         sciKey = 283;      break;
         case VK_F3:         sciKey = 284;      break;
+        case VK_F4:         sciKey = 285;      break;
         case VK_F5:         sciKey = 286;      break;
         case VK_F11:        sciKey = 292;      break;
         case VK_SHIFT:
