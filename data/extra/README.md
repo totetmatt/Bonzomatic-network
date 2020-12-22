@@ -12,16 +12,18 @@ Bonzomatic can be launched as "sender" or as "grabber" if you want to send your 
 ## Keys
 - F2: toggle texture preview
 - F3: in a grabber bonzo to toggle following the coder's caret or allowing free scrolling
+- F4: reset shader time to zero
 - F5 or Ctrl-R: recompile shader
 - F11 or Ctrl/Cmd-f: hide shader overlay
 - Alt-F4 or Shift+Escape: exbobolate your planet
 
 ## Requirements
-On Windows, both DirectX 9 and 11 are supported.
+On Windows, both DirectX 9 and 11 are supported
 
 For the OpenGL version (for any platform), at least OpenGL 4.1 is required.
 
-Only windows version has been tested.
+Sender and grabber must launch the same version (DX9/DX11/Ogl)
+DX9/DX11 versions are not recommanded if you launch several grabbing Bonzomatic on the same PC
 
 ## Using Network
 
@@ -64,7 +66,7 @@ You can configure Bonzomatic by tweaking the `config.json` that is next to the b
 You can also pass command line options:
 - configfile=config2.json
 - skipdialog
-- serverURL=ws://127.0.0.1:8000
+- serverURL=ws://127.0.0.1:8000/roomname/nickname
 - networkMode=grabber
 
 The config.json file can have the following contents: (all fields are optional)
@@ -78,8 +80,12 @@ The config.json file can have the following contents: (all fields are optional)
     "hideConsole": false,
   },
   "font":{ // all paths in the file are also relative to the binary, but again, can be absolute paths if that's more convenient
-    "file":"Input-Regular_(InputMono-Medium).ttf",
+    "file": "ProFontWindows.ttf",
     "size":16,
+  },
+  "codernamefont": { // alternative font that is used to display the coder's name
+    "file": "ProFontWindows.ttf",
+    "size": 16
   },
   "rendering":{
     "fftSmoothFactor": 0.9, // 0.0 means there's no smoothing at all, 1.0 means the FFT is completely smoothed flat
@@ -102,6 +108,7 @@ The config.json file can have the following contents: (all fields are optional)
     "autoIndent": "smart", // can be "none", "preserve" or "smart"
     "scrollXFactor": 1.0, // if horizontal scrolling is too slow you can speed it up here (or change direction)
     "scrollYFactor": 1.0, // if vertical scrolling is too slow you can speed it up here (or change direction)
+    "alwaysdisplaycodername": true // if network is enabled, decide if coder's name is always displayed even when hidding editor text
   },
   "midi":{ // the keys below will become the shader variable names, the values are the CC numbers
     "fMidiKnob": 16, // e.g. this would be CC#16, i.e. by default the leftmost knob on a nanoKONTROL 2
@@ -110,7 +117,7 @@ The config.json file can have the following contents: (all fields are optional)
   "ndi":{
     "enabled": true,
     "connectionString": "<ndi_product something=\"123\"/>", // metadata sent to the receiver; completely optional
-    "identifier": "hello!", // additional string to the device name; helps source discovery/identification in the receiver if there are multiple sources on the network
+    "identifier": "hello!", // device identifier; must be unique, also helps source discovery/identification in the receiver if there are multiple sources on the network
     "frameRate": 60.0, // frames per second
     "progressive": true, // progressive or interleaved?
   },
@@ -119,7 +126,10 @@ The config.json file can have the following contents: (all fields are optional)
     "enabled": true,
     "serverURL": "ws://127.0.0.1:8000",
     "networkMode": "grabber", // can be sender or grabber
-    "udpateInterval": 0.3 // duration between two shader sending
+    "udpateInterval": 0.3, // duration between two shader sending
+    "SyncTimeWithSender": true, // grabber will have same shader time than sender
+    "SendMidiControls": true, // sender will broadcast it's midi control's
+    "GrabMidiControls": true // grabber will apply recieved midi control's
   },
   // this section is if you want to customise colors to your liking
   "theme":{
