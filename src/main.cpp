@@ -728,13 +728,15 @@ int main(int argc, const char *argv[])
     {
       Renderer::UpdateR32Texture( texFFT, fftData );
 
+      float integratedScale = deltaTime * 60.0f;
+
       const static float maxIntegralValue = 1024.0f;
       for ( int i = 0; i < FFT_SIZE; i++ )
       {
         fftDataSmoothed[i] = fftDataSmoothed[i] * fFFTSmoothingFactor + (1 - fFFTSmoothingFactor) * fftData[i];
 
         fftDataSlightlySmoothed[i] = fftDataSlightlySmoothed[i] * fFFTSlightSmoothingFactor + (1 - fFFTSlightSmoothingFactor) * fftData[i];
-        fftDataIntegrated[i] = fftDataIntegrated[i] + fftDataSlightlySmoothed[i];
+        fftDataIntegrated[i] = fftDataIntegrated[i] + fftDataSlightlySmoothed[i]* integratedScale;
         if (fftDataIntegrated[i] > maxIntegralValue) {
           fftDataIntegrated[i] -= maxIntegralValue;
         }
