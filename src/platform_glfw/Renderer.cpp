@@ -124,10 +124,12 @@ namespace Renderer
     "\n"
     "uniform float fGlobalTime; // in seconds\n"
     "uniform vec2 v2Resolution; // viewport resolution (in pixels)\n"
+    "uniform float fFrameTime; // duration of the last frame, in seconds\n"
     "\n"
     "uniform sampler1D texFFT; // towards 0.0 is bass / lower freq, towards 1.0 is higher / treble freq\n"
     "uniform sampler1D texFFTSmoothed; // this one has longer falloff and less harsh transients\n"
     "uniform sampler1D texFFTIntegrated; // this is continually increasing\n"
+    "uniform sampler2D texPreviousFrame; // screenshot of the previous frame\n"
     "{%textures:begin%}" // leave off \n here
     "uniform sampler2D {%textures:name%};\n"
     "{%textures:end%}" // leave off \n here
@@ -139,27 +141,27 @@ namespace Renderer
     "\n"
     "vec4 plas( vec2 v, float time )\n"
     "{\n"
-    "  float c = 0.5 + sin( v.x * 10.0 ) + cos( sin( time + v.y ) * 20.0 );\n"
-    "  return vec4( sin(c * 0.2 + cos(time)), c * 0.15, cos( c * 0.1 + time / .4 ) * .25, 1.0 );\n"
+    "\tfloat c = 0.5 + sin( v.x * 10.0 ) + cos( sin( time + v.y ) * 20.0 );\n"
+    "\treturn vec4( sin(c * 0.2 + cos(time)), c * 0.15, cos( c * 0.1 + time / .4 ) * .25, 1.0 );\n"
     "}\n"
     "void main(void)\n"
     "{\n"
-    "  vec2 uv = vec2(gl_FragCoord.x / v2Resolution.x, gl_FragCoord.y / v2Resolution.y);\n"
-    "  uv -= 0.5;\n"
-    "  uv /= vec2(v2Resolution.y / v2Resolution.x, 1);\n"
+    "\tvec2 uv = vec2(gl_FragCoord.x / v2Resolution.x, gl_FragCoord.y / v2Resolution.y);\n"
+    "\tuv -= 0.5;\n"
+    "\tuv /= vec2(v2Resolution.y / v2Resolution.x, 1);\n"
     "\n"
-    "  vec2 m;\n"
-    "  m.x = atan(uv.x / uv.y) / 3.14;\n"
-    "  m.y = 1 / length(uv) * .2;\n"
-    "  float d = m.y;\n"
+    "\tvec2 m;\n"
+    "\tm.x = atan(uv.x / uv.y) / 3.14;\n"
+    "\tm.y = 1 / length(uv) * .2;\n"
+    "\tfloat d = m.y;\n"
     "\n"
-    "  float f = texture( texFFT, d ).r * 100;\n"
-    "  m.x += sin( fGlobalTime ) * 0.1;\n"
-    "  m.y += fGlobalTime * 0.25;\n"
+    "\tfloat f = texture( texFFT, d ).r * 100;\n"
+    "\tm.x += sin( fGlobalTime ) * 0.1;\n"
+    "\tm.y += fGlobalTime * 0.25;\n"
     "\n"
-    "  vec4 t = plas( m * 3.14, fGlobalTime ) / d;\n"
-    "  t = clamp( t, 0.0, 1.0 );\n"
-    "  out_color = f + t;\n"
+    "\tvec4 t = plas( m * 3.14, fGlobalTime ) / d;\n"
+    "\tt = clamp( t, 0.0, 1.0 );\n"
+    "\tout_color = f + t;\n"
     "}";
 
   GLFWwindow * mWindow = NULL;
@@ -733,6 +735,32 @@ namespace Renderer
   };
 
   int textureUnit = 0;
+
+  Texture * CreateRGBA8Texture()
+  {
+    void * data = NULL;
+    GLenum internalFormat = GL_SRGB8_ALPHA8;
+    GLenum srcFormat = GL_FLOAT;
+    GLenum format = GL_UNSIGNED_BYTE;
+
+    GLuint glTexId = 0;
+    glGenTextures(1, &glTexId);
+    glBindTexture(GL_TEXTURE_2D, glTexId);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    GLTexture * tex = new GLTexture();
+    tex->width = nWidth;
+    tex->height = nHeight;
+    tex->ID = glTexId;
+    tex->type = TEXTURETYPE_2D;
+    tex->unit = textureUnit++;
+    return tex;
+  }
+
   Texture * CreateRGBA8TextureFromFile( const char * szFilename )
   {
     int comp = 0;
@@ -856,6 +884,13 @@ namespace Renderer
   void ReleaseTexture( Texture * tex )
   {
     glDeleteTextures(1, &((GLTexture*)tex)->ID );
+  }
+
+  void CopyBackbufferToTexture(Texture * tex)
+  {
+    glActiveTexture(GL_TEXTURE0 + ((GLTexture *)tex)->unit);
+    glBindTexture(GL_TEXTURE_2D, ((GLTexture *)tex)->ID);
+    glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, nWidth, nHeight, 0);
   }
 
   //////////////////////////////////////////////////////////////////////////

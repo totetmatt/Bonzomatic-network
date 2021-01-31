@@ -409,6 +409,7 @@ int main(int argc, const char *argv[])
     return 0;
   }
   
+  Renderer::Texture * texPreviousFrame = Renderer::CreateRGBA8Texture();
   Renderer::Texture * texFFT = Renderer::Create1DR32Texture( FFT_SIZE );
   Renderer::Texture * texFFTSmoothed = Renderer::Create1DR32Texture( FFT_SIZE );
   Renderer::Texture * texFFTIntegrated = Renderer::Create1DR32Texture( FFT_SIZE );
@@ -517,6 +518,7 @@ int main(int argc, const char *argv[])
   Timer::Start();
   float shaderTimeOffset = 0;
   float fNextTick = 0.1f;
+  float fLastTimeMS = Timer::GetTime();
   float oldtime = Timer::GetTime() / 1000.0;  
   while (!Renderer::WantsToQuit())
   {
@@ -705,6 +707,10 @@ int main(int argc, const char *argv[])
     Renderer::SetShaderConstant( "fGlobalTime", time + shaderTimeOffset);
     Renderer::SetShaderConstant( "v2Resolution", Renderer::nWidth, Renderer::nHeight );
 
+    float fTime = Timer::GetTime();
+    Renderer::SetShaderConstant("fFrameTime", (fTime - fLastTimeMS) / 1000.0f);
+    fLastTimeMS = fTime;
+
     if (Network::CanGrabMidiControls()) {
       for (auto it = networkParamCache.begin(); it != networkParamCache.end(); it++)
       {
@@ -749,6 +755,7 @@ int main(int argc, const char *argv[])
     Renderer::SetShaderTexture( "texFFT", texFFT );
     Renderer::SetShaderTexture( "texFFTSmoothed", texFFTSmoothed );
     Renderer::SetShaderTexture( "texFFTIntegrated", texFFTIntegrated );
+    Renderer::SetShaderTexture( "texPreviousFrame", texPreviousFrame );
 
     for (std::map<std::string, Renderer::Texture*>::iterator it = textures.begin(); it != textures.end(); it++)
     {
@@ -756,6 +763,8 @@ int main(int argc, const char *argv[])
     }
 
     Renderer::RenderFullscreenQuad();
+
+    Renderer::CopyBackbufferToTexture(texPreviousFrame);
 
     int TexPreviewOffset = bTexPreviewVisible ? nTexPreviewWidth + nMargin : 0;
     if (needEditorUpdate || Renderer::nSizeChanged)
@@ -870,6 +879,8 @@ int main(int argc, const char *argv[])
 
     if (Renderer::nSizeChanged)
     {
+      Renderer::ReleaseTexture(texPreviousFrame);
+      texPreviousFrame = Renderer::CreateRGBA8Texture();
       Capture::CaptureResize(Renderer::nWidth, Renderer::nHeight);
     }
     Renderer::nSizeChanged = false;
@@ -904,6 +915,7 @@ int main(int argc, const char *argv[])
 
   Network::Release();
 
+  Renderer::ReleaseTexture(texPreviousFrame);
   Renderer::ReleaseTexture( texFFT );
   Renderer::ReleaseTexture( texFFTSmoothed );
   for (std::map<std::string, Renderer::Texture*>::iterator it = textures.begin(); it != textures.end(); it++)

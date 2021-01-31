@@ -117,6 +117,8 @@ namespace Renderer
     "// this one has longer falloff and less harsh transients\n"
     "texture texFFTIntegratedT; sampler1D texFFTIntegrated = sampler_state { Texture = <texFFTIntegratedT>; }; \n"
     "// this is continually increasing\n"
+    "texture texPreviousFrameT; sampler2D texPreviousFrame = sampler_state { Texture = <texPreviousFrameT>; }; \n"
+    "// screenshot of the previous frame\n"
     "\n"
     "{%textures:begin%}" // leave off \n here
     "texture raw{%textures:name%}; sampler2D {%textures:name%} = sampler_state { Texture = <raw{%textures:name%}>; };\n"
@@ -126,31 +128,32 @@ namespace Renderer
     "float {%midi:name%};\n"
     "{%midi:end%}"
     "float fGlobalTime; // in seconds\n"
+    "float fFrameTime; // duration of the last frame, in seconds\n"
     "float2 v2Resolution; // viewport resolution (in pixels)\n"
     "\n"
     "float4 plas( float2 v, float time )\n"
     "{\n"
-    "  float c = 0.5 + sin( v.x * 10.0 ) + cos( sin( time + v.y ) * 20.0 );\n"
-    "  return float4( sin(c * 0.2 + cos(time)), c * 0.15, cos( c * 0.1 + time / .4 ) * .25, 1.0 );\n"
+    "\tfloat c = 0.5 + sin( v.x * 10.0 ) + cos( sin( time + v.y ) * 20.0 );\n"
+    "\treturn float4( sin(c * 0.2 + cos(time)), c * 0.15, cos( c * 0.1 + time / .4 ) * .25, 1.0 );\n"
     "}\n"
     "float4 main( float2 TexCoord : TEXCOORD0 ) : COLOR0\n"
     "{\n"
-    "  float2 uv = TexCoord;\n"
-    "  uv -= 0.5;\n"
-    "  uv /= float2(v2Resolution.y / v2Resolution.x, 1);"
+    "\tfloat2 uv = TexCoord;\n"
+    "\tuv -= 0.5;\n"
+    "\tuv /= float2(v2Resolution.y / v2Resolution.x, 1);"
     "\n"
-    "  float2 m;\n"
-    "  m.x = atan(uv.x / uv.y) / 3.14;\n"
-    "  m.y = 1 / length(uv) * .2;\n"
-    "  float d = m.y;\n"
+    "\tfloat2 m;\n"
+    "\tm.x = atan(uv.x / uv.y) / 3.14;\n"
+    "\tm.y = 1 / length(uv) * .2;\n"
+    "\tfloat d = m.y;\n"
     "\n"
-    "  float f = tex1D( texFFT, d ).r * 100;\n"
-    "  m.x += sin( fGlobalTime ) * 0.1;\n"
-    "  m.y += fGlobalTime * 0.25;\n"
+    "\tfloat f = tex1D( texFFT, d ).r * 100;\n"
+    "\tm.x += sin( fGlobalTime ) * 0.1;\n"
+    "\tm.y += fGlobalTime * 0.25;\n"
     "\n"
-    "  float4 t = plas( m * 3.14, fGlobalTime ) / d;\n"
-    "  t = saturate( t );\n"
-    "  return f + t;\n"
+    "\tfloat4 t = plas( m * 3.14, fGlobalTime ) / d;\n"
+    "\tt = saturate( t );\n"
+    "\treturn f + t;\n"
     "}";
   char defaultVertexShader[65536] = 
     "struct VS_INPUT_PP { float3 Pos : POSITION0; float2 TexCoord : TEXCOORD0; };\n"
@@ -496,11 +499,12 @@ namespace Renderer
       D3DDECL_END()
     };
 
-    static float pQuad[] = {
-      -1.0, -1.0,  0.0, 0.0, 0.0,
-      -1.0,  1.0,  0.0, 0.0, 1.0,
-       1.0, -1.0,  0.0, 1.0, 0.0,
-       1.0,  1.0,  0.0, 1.0, 1.0,
+    static float pQuad[] =
+    {
+      -1.0, -1.0,  0.0, 0.0 + 0.5 / (float)nWidth, 0.0 + 0.5 / (float)nHeight,
+      -1.0,  1.0,  0.0, 0.0 + 0.5 / (float)nWidth, 1.0 + 0.5 / (float)nHeight,
+       1.0, -1.0,  0.0, 1.0 + 0.5 / (float)nWidth, 0.0 + 0.5 / (float)nHeight,
+       1.0,  1.0,  0.0, 1.0 + 0.5 / (float)nWidth, 1.0 + 0.5 / (float)nHeight,
     };
 
     pDevice->CreateVertexBuffer( 4 * 5 * sizeof(float), D3DUSAGE_WRITEONLY, D3DFVF_XYZ | D3DFVF_TEX1, D3DPOOL_DEFAULT, &pFullscreenQuadVB, NULL);
@@ -639,6 +643,24 @@ namespace Renderer
   };
 
   int textureUnit = 0;
+
+  Renderer::Texture * CreateRGBA8Texture()
+  {
+    LPDIRECT3DTEXTURE9 pTex = NULL;
+    pDevice->CreateTexture(nWidth, nHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pTex, NULL);
+
+    if (!pTex)
+      return NULL;
+
+    DX9Texture * tex = new DX9Texture();
+    tex->pTexture = pTex;
+    tex->width = nWidth;
+    tex->height = nHeight;
+    tex->type = TEXTURETYPE_2D;
+    return tex;
+
+  }
+
   Texture * CreateRGBA8TextureFromFile( const char * szFilename )
   {
     LPDIRECT3DTEXTURE9 pTex = NULL;
@@ -646,8 +668,8 @@ namespace Renderer
     HRESULT h = D3DXCreateTextureFromFileExA(
       pDevice,
       szFilename,
-      D3DX_DEFAULT,
-      D3DX_DEFAULT,
+      D3DX_DEFAULT_NONPOW2,
+      D3DX_DEFAULT_NONPOW2,
       0,
       NULL,
       D3DFMT_FROM_FILE,
@@ -750,6 +772,24 @@ namespace Renderer
     return tex;
   }
 
+  void ReleaseTexture(Texture * tex)
+  {
+    ((DX9Texture *)tex)->pTexture->Release();
+    delete tex;
+  }
+
+  void CopyBackbufferToTexture(Texture * tex)
+  {
+    LPDIRECT3DTEXTURE9 pTex = ((DX9Texture *)tex)->pTexture;
+    LPDIRECT3DSURFACE9 pSurf = NULL;
+    pTex->GetSurfaceLevel(0, &pSurf);
+    if (pSurf)
+    {
+      HRESULT res = pDevice->StretchRect(pBackBuffer, NULL, pSurf, NULL, D3DTEXF_LINEAR);
+      pSurf->Release();
+    }
+  }
+
   //////////////////////////////////////////////////////////////////////////
   // text rendering
 
@@ -780,11 +820,6 @@ namespace Renderer
     pDevice->SetTextureStageState( 0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE );
   }
 
-  void ReleaseTexture( Texture * tex )
-  {
-    ((DX9Texture *)tex)->pTexture->Release();
-    delete tex;
-  }
 
   int bufferPointer = 0;
   unsigned char buffer[GUIQUADVB_SIZE * sizeof(float) * 6];
