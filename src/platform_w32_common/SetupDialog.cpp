@@ -144,9 +144,7 @@ public:
             setup->bVsync = SendDlgItemMessage(hWnd, IDC_VSYNC, BM_GETCHECK , 0, 0) > 0;
 
             // ACCEPT
-            if (SendDlgItemMessage(hWnd, IDC_OFFLINE, BM_GETCHECK, 0, 0)) {
-              network->EnableNetwork = false;
-            }
+            network->EnableNetwork = !SendDlgItemMessage(hWnd, IDC_OFFLINE, BM_GETCHECK, 0, 0);
             network->NetworkModeString = "grabber";
             if (SendDlgItemMessage(hWnd, IDC_SENDER, BM_GETCHECK, 0, 0)) {
               network->NetworkModeString = "sender";
