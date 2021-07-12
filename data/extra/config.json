@@ -16,8 +16,11 @@
   },
   "rendering": {
     "fftSmoothFactor": 0.9,
-    "fftCapturePlaybackDevices": false, // If true, will capture from playback devices (desktop sound) instead of capture devices (mic)
-    "fftCaptureDeviceSearchString":  "", // If not empty, will search a device name containing this string
+    "fftCapturePlaybackDevices": true, // If true, will capture from playback devices (desktop sound) instead of capture devices (mic)
+    "fftCaptureDeviceSearchString": "", // If not empty, will search a device name containing this string
+    "fftPeakNormalization": true, // If true, FFT will be normalized so as not to depend on the audio level
+    "fftPeakMinValue": 0.01, // Minimum audio peak that will be scaled
+    "fftPeakSmoothing": 0.995 // If audio peak drops, we smooth the transition to adjust it slowly
   },
   "textures": {
     "texChecker": "textures/checker.png",

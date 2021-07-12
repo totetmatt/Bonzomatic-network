@@ -15,6 +15,10 @@ namespace FFT
   ma_device captureDevice;
   float sampleBuf[ FFT_SIZE * 2 ];
   float fAmplification = 1.0f;
+  bool bPeakNormalization = true;
+  float fPeakSmoothValue = 0.0f;
+  float fPeakMinValue = 0.01f;
+  float fPeakSmoothing = 0.995f;
 
   void OnLog( ma_context* pContext, ma_device* pDevice, ma_uint32 logLevel, const char* message )
   {
@@ -34,7 +38,7 @@ namespace FFT
     }
     for ( int i = 0; i < frameCount; i++ )
     {
-      *( p++ ) = ( samples[ i * 2 ] + samples[ i * 2 + 1 ] ) / 2.0f * fAmplification;
+      *( p++ ) = ( samples[ i * 2 ] + samples[ i * 2 + 1 ] ) / 2.0f;
     }
   }
 
@@ -135,10 +139,27 @@ namespace FFT
     kiss_fft_cpx out[ FFT_SIZE + 1 ];
     kiss_fftr( fftcfg, sampleBuf, out );
 
-    for ( int i = 0; i < FFT_SIZE; i++ )
-    {
-      static const float scaling = 1.0f / (float)FFT_SIZE;
-      _samples[ i ] = 2.0 * sqrtf( out[ i ].r * out[ i ].r + out[ i ].i * out[ i ].i ) * scaling;
+    if (bPeakNormalization) {
+      float peakValue = fPeakMinValue;
+      for ( int i = 0; i < FFT_SIZE; i++ )
+      {
+        float val = 2.0f * sqrtf(out[i].r * out[i].r + out[i].i * out[i].i);
+        if (val > peakValue) peakValue = val;
+        _samples[ i ] = val * fAmplification;
+      }
+      if (peakValue > fPeakSmoothValue) {
+        fPeakSmoothValue = peakValue;
+      }
+      if (peakValue < fPeakSmoothValue) {
+        fPeakSmoothValue = fPeakSmoothValue * fPeakSmoothing + peakValue * (1 - fPeakSmoothing);
+      }
+      fAmplification = 1.0f / fPeakSmoothValue;
+    } else {
+      for (int i = 0; i < FFT_SIZE; i++)
+      {
+        static const float scaling = 1.0f / (float)FFT_SIZE;
+        _samples[i] = 2.0f * sqrtf(out[i].r * out[i].r + out[i].i * out[i].i) * scaling * fAmplification;
+      }
     }
 
     return true;

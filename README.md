@@ -90,8 +90,11 @@ The config.json file can have the following contents: (all fields are optional)
   "rendering":{
     "fftSmoothFactor": 0.9, // 0.0 means there's no smoothing at all, 1.0 means the FFT is completely smoothed flat
     "fftAmplification": 1.0, // 1.0 means no change, larger values will result in brighter/stronger bands, smaller values in darker/weaker ones
-    "fftCapturePlaybackDevices": false, // If true, will capture from playback devices (desktop sound) instead of capture devices (mic)
+    "fftCapturePlaybackDevices": true, // If true, will capture from playback devices (desktop sound) instead of capture devices (mic)
     "fftCaptureDeviceSearchString":  "", // If not empty, will search a device name containing this string
+    "fftPeakNormalization": true, // If true, FFT will be normalized so as not to depend on the audio level
+    "fftPeakMinValue": 0.01, // Minimum audio peak that will be scaled
+    "fftPeakSmoothing": 0.995 // If audio peak drops, we smooth the transition to adjust it slowly
   },
   "textures":{ // the keys below will become the shader variable names
     "texChecker":"textures/checker.png",

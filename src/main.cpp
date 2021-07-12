@@ -273,6 +273,12 @@ int main(int argc, const char *argv[])
         fFFTSmoothingFactor = RenderingSection.get<jsonxx::Number>("fftSmoothFactor");
       if (RenderingSection.has<jsonxx::Number>("fftAmplification"))
         FFT::fAmplification = RenderingSection.get<jsonxx::Number>("fftAmplification");
+      if (RenderingSection.has<jsonxx::Boolean>("fftPeakNormalization"))
+        FFT::bPeakNormalization = RenderingSection.get<jsonxx::Boolean>("fftPeakNormalization");
+      if (RenderingSection.has<jsonxx::Number>("fftPeakMinValue"))
+        FFT::fPeakMinValue = RenderingSection.get<jsonxx::Number>("fftPeakMinValue");
+      if (RenderingSection.has<jsonxx::Number>("fftPeakSmoothing"))
+        FFT::fPeakSmoothing = RenderingSection.get<jsonxx::Number>("fftPeakSmoothing");
     }
 
     if (options.has<jsonxx::Object>("textures"))
@@ -519,7 +525,7 @@ int main(int argc, const char *argv[])
   float shaderTimeOffset = 0;
   float fNextTick = 0.1f;
   float fLastTimeMS = Timer::GetTime();
-  float oldtime = Timer::GetTime() / 1000.0;  
+  float oldtime = Timer::GetTime() / 1000.0;
   while (!Renderer::WantsToQuit())
   {
     
