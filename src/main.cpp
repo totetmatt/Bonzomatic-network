@@ -522,6 +522,7 @@ int main(int argc, const char *argv[])
   bool bGrabberFollowCaret = true;
   bool bShowGui = true;
   Timer::Start();
+  bool shaderFirstNetworkSend = true;
   float shaderTimeOffset = 0;
   float fNextTick = 0.1f;
   float fLastTimeMS = Timer::GetTime();
@@ -543,7 +544,8 @@ int main(int argc, const char *argv[])
       mShaderEditor.GetText(szShader, 65535);
 	    Network::ShaderMessage NewMessage;
 	    NewMessage.Code = std::string(szShader);
-	    NewMessage.NeedRecompile = false;
+	    NewMessage.NeedRecompile = shaderFirstNetworkSend; // only force recompile on the first send
+      shaderFirstNetworkSend = false;
 	    NewMessage.CaretPosition = mShaderEditor.WndProc(SCI_GETCURRENTPOS, 0, 0);
 	    NewMessage.AnchorPosition = mShaderEditor.WndProc(SCI_GETANCHOR, 0, 0);
       int TopLine = mShaderEditor.WndProc(SCI_GETFIRSTVISIBLELINE, 0, 0);
