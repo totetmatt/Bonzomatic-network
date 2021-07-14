@@ -70,10 +70,11 @@ void EnterNewCoderMode() {
 }
 
 void ValidNewCoder() {
-  printf("[LAUNCHER] Add coder %s \n", sNewCoderName.c_str());
-  AddInstance(sNewCoderName);
-  ChangeDisplay(DisplayAction::FirstDisplay);
-
+  if (sNewCoderName.size() > 0) {
+    printf("[LAUNCHER] Add coder %s \n", sNewCoderName.c_str());
+    AddInstance(sNewCoderName);
+    ChangeDisplay(DisplayAction::FirstDisplay);
+  }
   bModeNewCoder = false;
 }
 
@@ -215,7 +216,7 @@ void InitFont(std::string FontPath)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
-void DrawText(float x, float y, const char *text)
+float DrawText(float x, float y, const char *text)
 {
   // assume orthographic projection with units = screen pixels, origin at top left
   glEnable(GL_TEXTURE_2D);
@@ -235,6 +236,7 @@ void DrawText(float x, float y, const char *text)
     ++text;
   }
   glEnd();
+  return x;
 }
 
 void DrawQuad(int x, int y, int w, int h) {
@@ -436,6 +438,7 @@ bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
   return mousebtn_press_left && IsInside;
 }
 
+float TimeSinceStart = 0.0;
 void InputText(int x, int y, int w, int h, const char* Text) {
 
   SetColor(ColorButtonBorderHover);
@@ -444,7 +447,10 @@ void InputText(int x, int y, int w, int h, const char* Text) {
   DrawQuad(x + 5, y + 5, w - 10, h - 10);
 
   SetColor(ColorText);
-  DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
+  float TextEndPos = DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
+  // carret
+  SetColor(((int)(TimeSinceStart*2))%2 == 0 ? ColorButtonBorder : ColorButtonBorderHover);
+  DrawQuad(TextEndPos + 2, y - FontSize / 2 + h / 2, 4, FontSize);
 }
 
 template <typename T> std::string tostr(const T& t) {
@@ -454,7 +460,6 @@ template <typename T> std::string tostr(const T& t) {
 }
 
 float LastUIHeight = 0.0;
-float tmptime = 0.0;
 bool ScroolStartDrag = false;
 int ScroolLastMouseY = 0;
 void UpdateControlWindow(float ElapsedTime) {
@@ -624,6 +629,7 @@ void UpdateControlWindow(float ElapsedTime) {
     }
 
     if (!mousebtn_left) ScroolStartDrag = false;
+
     /*
     PosY += 20;
     tmptime += ElapsedTime;
@@ -643,6 +649,8 @@ void UpdateControlWindow(float ElapsedTime) {
   }
 
   LastUIHeight = PosY - StartY;
+
+  TimeSinceStart += ElapsedTime;
 
   mouse_tick();
   
