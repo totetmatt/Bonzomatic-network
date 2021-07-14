@@ -12,17 +12,18 @@ public:
   STARTUPINFOA siStartupInfo;
   PROCESS_INFORMATION piProcessInfo;
 
-  int Index = 0;
   std::string CoderName;
   bool IsFullScreen = false;
   bool IsHidden = false;
 
   Instance();
-  bool Init(int InstanceIndex, std::string CoderName);
+  bool Init(std::string CoderName);
   void Release();
   void Restart();
 };
 
+Instance* AddInstance(std::string CoderName);
+void RemoveInstance(Instance* instance);
 bool LaunchInstances(jsonxx::Object options);
 void ReleaseInstances();
 void FindDesktopResolution();

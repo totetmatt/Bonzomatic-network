@@ -31,6 +31,10 @@ static void error_callback(int error, const char *description) {
   printf("%s\n", description);
 }
 
+bool bModeNewCoder = false;
+std::string sNewCoderName = "";
+bool bModeOptions = false;
+
 int nWidth = 300;
 int nHeight = 800;
 bool nSizeChanged = false;
@@ -60,38 +64,80 @@ void ToggleDiaporama() {
   }
 }
 
+void EnterNewCoderMode() {
+  sNewCoderName = "";
+  bModeNewCoder = true;
+}
+
+void ValidNewCoder() {
+  printf("[LAUNCHER] Add coder %s \n", sNewCoderName.c_str());
+  AddInstance(sNewCoderName);
+  ChangeDisplay(DisplayAction::FirstDisplay);
+
+  bModeNewCoder = false;
+}
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-  bool CtrlPressed = (mods & GLFW_MOD_CONTROL);
-  int FullIndexOffset = CtrlPressed ? 10 : 0;
+  int FullIndexOffset = 0;
+  if (mods & GLFW_MOD_CONTROL) FullIndexOffset = 10;
+  if (mods & GLFW_MOD_SHIFT) FullIndexOffset = 20;
+  if (mods & GLFW_MOD_ALT) FullIndexOffset = 30;
   if (action == GLFW_PRESS || action == GLFW_REPEAT) {
-    switch (key) {
-    case GLFW_KEY_ESCAPE:
-    case GLFW_KEY_M:
-      PressMosaic(); break;
-    case GLFW_KEY_D: ToggleDiaporama(); break;
-    case GLFW_KEY_F11: ToggleTextEditor(); break;
-    case GLFW_KEY_0: ToggleFullscreen(FullIndexOffset + 9); break;
-    case GLFW_KEY_LEFT:
-    case GLFW_KEY_UP:
-      FullscreenPrev(); break;
-    case GLFW_KEY_RIGHT:
-    case GLFW_KEY_DOWN:
-      FullscreenNext(); break;
-    default:
-        if ((key >= GLFW_KEY_A) && (key <= GLFW_KEY_Z)) {
-          
-        }
-        if ((key >= GLFW_KEY_1) && (key <= GLFW_KEY_9)) {
-          ToggleFullscreen(FullIndexOffset + key - GLFW_KEY_1);
-        }
-        break;
+    if (bModeNewCoder) {
+      switch (key) {
+        case GLFW_KEY_ESCAPE:
+          bModeNewCoder = false;
+          break;
+        case GLFW_KEY_BACKSPACE:
+          if (sNewCoderName.length() > 0) sNewCoderName.pop_back();
+          break;
+        case GLFW_KEY_ENTER:
+          ValidNewCoder();
+          break;
+        default:
+          break;
+      }
+    } else {
+      switch (key) {
+        case GLFW_KEY_ESCAPE:
+        case GLFW_KEY_M:
+          PressMosaic(); break;
+        case GLFW_KEY_D: ToggleDiaporama(); break;
+        case GLFW_KEY_A: EnterNewCoderMode(); break;
+        case GLFW_KEY_O: bModeOptions=!bModeOptions; break;
+        case GLFW_KEY_F11: ToggleTextEditor(); break;
+        case GLFW_KEY_0: ToggleFullscreen(FullIndexOffset + 9); break;
+        case GLFW_KEY_LEFT:
+        case GLFW_KEY_UP:
+          FullscreenPrev(); break;
+        case GLFW_KEY_RIGHT:
+        case GLFW_KEY_DOWN:
+          FullscreenNext(); break;
+        default:
+          if ((key >= GLFW_KEY_A) && (key <= GLFW_KEY_Z)) {
+
+          }
+          if ((key >= GLFW_KEY_1) && (key <= GLFW_KEY_9)) {
+            ToggleFullscreen(FullIndexOffset + key - GLFW_KEY_1);
+          }
+          break;
+      }
     }
   }
 }
 
 void character_callback(GLFWwindow* window, unsigned int codepoint)
 {
+  // space are not allowed in names
+  if (codepoint == GLFW_KEY_SPACE) return;
+  // TODO: will only work for ascii characters
+  if (codepoint >= 256) {
+    sNewCoderName += unsigned char(codepoint % 256);
+    sNewCoderName += unsigned char(codepoint / 256);
+  } else {
+    sNewCoderName += unsigned char(codepoint);
+  }
 }
 
 int mousepos_x;
@@ -243,7 +289,6 @@ void SetColor(ThemeColor Col) {
 
 bool InitControlWindow(jsonxx::Object options) {
   
-
   glfwSetErrorCallback(error_callback);
 
   if (!glfwInit())
@@ -391,6 +436,17 @@ bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
   return mousebtn_press_left && IsInside;
 }
 
+void InputText(int x, int y, int w, int h, const char* Text) {
+
+  SetColor(ColorButtonBorderHover);
+  DrawQuad(x, y, w, h);
+  SetColor(ColorButton);
+  DrawQuad(x + 5, y + 5, w - 10, h - 10);
+
+  SetColor(ColorText);
+  DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
+}
+
 template <typename T> std::string tostr(const T& t) {
   std::ostringstream os;
   os << t;
@@ -399,6 +455,8 @@ template <typename T> std::string tostr(const T& t) {
 
 float LastUIHeight = 0.0;
 float tmptime = 0.0;
+bool ScroolStartDrag = false;
+int ScroolLastMouseY = 0;
 void UpdateControlWindow(float ElapsedTime) {
 
   const float ar = (float)nWidth / (float)nHeight;
@@ -415,18 +473,7 @@ void UpdateControlWindow(float ElapsedTime) {
   glClearColor(ColorBackground.R, ColorBackground.G, ColorBackground.B, 1);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
-  /*
-  glColor3d(0.5, 0, 0.5);
-  DrawQuad(0, 0, 400, 400);
-
-  glColor3d(0, 0, 0.5);
-  DrawQuad(20, 20, 360, 20);
-
-  glColor3d(1,1,1);
-  my_stbtt_print(20, 40, "Hello World");
-  glColor3d(1, 0, 1);
-  my_stbtt_print(20, 60, "Hello World");
-  */
+  // Start drawing UI
 
   std::vector<class Instance*>& Instances = GetInstances();
 
@@ -434,60 +481,166 @@ void UpdateControlWindow(float ElapsedTime) {
     
   int StartY = -ScroolPositionY;
   int PosY = StartY + 20;
-  if (Button(20, PosY, nWidth - 40, 35, "Mosaic")) {
-    PressMosaic();
-  }
-  PosY += 50;
-  if (Button(20, PosY, nWidth - 40, 35, "Diaporama")) {
-    ToggleDiaporama();
-  }
-  UpdateDiaporama(ElapsedTime);
-  if (IsDiapoLaunched()) {
-    glColor3d(0, 1, 0);
-  }
-  else {
-    glColor3d(1, 0, 0);
-  }
-  DrawQuad(15, PosY, 5, 35);
-  PosY += 50;
 
-  for(int i=0; i< Instances.size(); ++i) {
-    Instance* Cur = Instances[i];
-    if (Button(20, PosY, nWidth-100, 35, Cur->CoderName.c_str())) {
-      ToggleFullscreen(Cur);
+  if (bModeNewCoder) {
+
+    InputText(20, PosY, nWidth - 40, 35, sNewCoderName.c_str());
+    
+    PosY += 50;
+    if (Button(20, PosY, nWidth * 0.5 - 25, 35, "Cancel")) {
+      bModeNewCoder = false;
     }
-    if (ButtonCheck(nWidth-80, PosY, 30, 35, "X", !Cur->IsHidden)) {
-      ToggleHidden(Cur);
+    if (Button(20 + nWidth * 0.5 - 15, PosY, nWidth * 0.5 - 25, 35, "Add Coder")) {
+      ValidNewCoder();
     }
-    if (ButtonCheck(nWidth - 40, PosY, 30, 35, "R", true)) {
-      if (Cur) Cur->Restart();
+  } else {
+
+    int MenuWidth = nWidth - 40;
+    if (Button(20, PosY, MenuWidth * 0.4, 35, "Add Coder")) {
+      EnterNewCoderMode();
     }
-    if (Cur->IsFullScreen) {
+    if (Button(20 + MenuWidth * 0.4, PosY, MenuWidth * 0.3, 35, "Save")) {
+      extern void SaveConfigFile();
+      SaveConfigFile();
+    }
+    if (ButtonCheck(20 + MenuWidth * 0.7, PosY, MenuWidth * 0.3, 35, "Options", !bModeOptions)) {
+      bModeOptions = !bModeOptions;
+    }
+    PosY += 50;
+
+    int VisibleInstances = 0;
+    for (int i = 0; i < Instances.size(); ++i) {
+      Instance* Cur = Instances[i];
+      if (Cur) {
+        if(!Cur->IsHidden) ++VisibleInstances;
+      }
+    }
+    std::string VisibleCountText = tostr(VisibleInstances);
+    std::string InstanceCountText = tostr(Instances.size());
+    std::string MosaicTitle = "Mosaic (" + VisibleCountText + "/" + InstanceCountText + ")";
+    if (Button(20, PosY, nWidth - 40, 35, MosaicTitle.c_str())) {
+      PressMosaic();
+    }
+    PosY += 50;
+    extern float DiapoDelay;
+    std::string DelayText = tostr(DiapoDelay);
+    std::string DiapoTitle = "Diaporama (" + DelayText + "s)";
+    if (Button(20, PosY, nWidth - 130, 35, DiapoTitle.c_str())) {
+      ToggleDiaporama();
+    }
+    if (Button(nWidth - 110, PosY, 30, 35, "-")) {
+      DiapoDelay = max(1, DiapoDelay - 1);
+    }
+    if (Button(nWidth - 80, PosY, 30, 35, "+")) {
+      DiapoDelay = DiapoDelay + 1;
+    }
+    extern bool DiapoInfiniteLoop;
+    if (ButtonCheck(nWidth - 50, PosY, 30, 35, "L", !DiapoInfiniteLoop)) {
+      DiapoInfiniteLoop = !DiapoInfiniteLoop;
+    }
+    UpdateDiaporama(ElapsedTime);
+    if (IsDiapoLaunched()) {
       glColor3d(0, 1, 0);
-    } else {
+    }
+    else {
       glColor3d(1, 0, 0);
     }
     DrawQuad(15, PosY, 5, 35);
-    
-    PosY += 40;
-  }
-  PosY += 40;
-  /*
-  PosY += 20;
-  tmptime += ElapsedTime;
-  std::string TimeStr = std::string("Time: ") + tostr(tmptime);
-  glColor3d(1, 1, 1);
-  DrawText(20, PosY, TimeStr.c_str());
-  PosY += 20;
-  extern float DiapoCurrentTime;
-  TimeStr = std::string("Cur: ") + tostr(DiapoCurrentTime);
-  glColor3d(1, 1, 1);
-  DrawText(20, PosY, TimeStr.c_str());
-  */
+    PosY += 50;
 
-  // cursor
-  //glColor3d(1, 1, 1);
-  //DrawQuad(mousepos_x, mousepos_y, 20, 20);
+    for (int i = 0; i < Instances.size(); ++i) {
+      Instance* Cur = Instances[i];
+      int NameRightSize = bModeOptions ? 200 : 70;
+      if (Button(20, PosY, nWidth - NameRightSize, 35, Cur->CoderName.c_str())) {
+        ToggleFullscreen(Cur);
+      }
+      if (ButtonCheck(nWidth - NameRightSize + 20, PosY, 30, 35, "X", !Cur->IsHidden)) {
+        ToggleHidden(Cur);
+      }
+      if (bModeOptions) {
+        bool UpdateDisplay = false;
+        if (i > 0 && Button(nWidth - 140, PosY, 30, 35, "A")) {
+          int other = i - 1;
+          if (other >= 0) {
+            Instance* tmp = Instances[other];
+            Instances[other] = Instances[i];
+            Instances[i] = tmp;
+            UpdateDisplay = true;
+          }
+        }
+        if (i < Instances.size()-1 && Button(nWidth - 110, PosY, 30, 35, "V")) {
+          int other = i + 1;
+          if (other < Instances.size()) {
+            Instance* tmp = Instances[other];
+            Instances[other] = Instances[i];
+            Instances[i] = tmp;
+            UpdateDisplay = true;
+          }
+        }
+        if (UpdateDisplay) {
+          extern bool GlobalIsFullscreen;
+          if(!GlobalIsFullscreen) ChangeDisplay(DisplayAction::ShowMosaic);
+        }
+        if (Button(nWidth - 80, PosY, 30, 35, "R")) {
+          if (Cur) Cur->Restart();
+        }
+        if (Button(nWidth - 50, PosY, 30, 35, "D")) {
+          if (Cur) {
+            RemoveInstance(Cur);
+            ChangeDisplay(DisplayAction::FirstDisplay);
+            break; // exit the loop so we don't mess up and delete several things
+          }
+        }
+      }
+      if (Cur->IsFullScreen) {
+        glColor3d(0, 1, 0);
+      }
+      else {
+        glColor3d(1, 0, 0);
+      }
+      DrawQuad(15, PosY, 5, 35);
+
+      PosY += 40;
+    }
+    PosY += 20;
+
+    // scroolbar
+    if (LastUIHeight > nHeight) {
+      SetColor(ColorButton);
+      DrawQuad(nWidth - 10, 0, 10, nHeight);
+
+      float ScroolFactor = 1.0f / ((float)(LastUIHeight - nHeight));
+      int ScroolButtonHeight = 35;
+      int ScroolButtonPosY = ScroolPositionY * ScroolFactor * (nHeight - ScroolButtonHeight);
+      if (Button(nWidth - 10, ScroolButtonPosY, 10, ScroolButtonHeight, "")) {
+        ScroolStartDrag = true;
+        ScroolLastMouseY = mousepos_y;
+      }
+      if (ScroolStartDrag) {
+        int offset = mousepos_y - ScroolLastMouseY;
+        ScroolPositionY += offset * (LastUIHeight - nHeight) / ((float)(nHeight - ScroolButtonHeight));
+        ScroolLastMouseY = mousepos_y;
+      }
+    }
+
+    if (!mousebtn_left) ScroolStartDrag = false;
+    /*
+    PosY += 20;
+    tmptime += ElapsedTime;
+    std::string TimeStr = std::string("Time: ") + tostr(tmptime);
+    glColor3d(1, 1, 1);
+    DrawText(20, PosY, TimeStr.c_str());
+    PosY += 20;
+    extern float DiapoCurrentTime;
+    TimeStr = std::string("Cur: ") + tostr(DiapoCurrentTime);
+    glColor3d(1, 1, 1);
+    DrawText(20, PosY, TimeStr.c_str());
+    */
+
+    // cursor
+    //glColor3d(1, 1, 1);
+    //DrawQuad(mousepos_x, mousepos_y, 20, 20);
+  }
 
   LastUIHeight = PosY - StartY;
 

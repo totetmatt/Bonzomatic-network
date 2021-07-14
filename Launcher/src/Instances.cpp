@@ -39,11 +39,13 @@ std::vector<class Instance*> Instances;
 
 
 float DiapoDelay = 50.0f;
+bool DiapoInfiniteLoop = false;
 int DiapoLoops = 1;
 int DiapoCurrentIndex = 0;
 float DiapoCurrentTime = 0;
 int DiapoCurrentLoop = 0;
 bool DiapoLaunched = false;
+bool WantTextEditor = true;
 
 bool IsDiapoLaunched() { return DiapoLaunched; }
 int GetCurrentDiapo() { return DiapoCurrentIndex; }
@@ -89,43 +91,47 @@ void ToggleFullscreen(Instance* Cur) {
   }
 }
 
-void ToggleTextEditor() {
-  for (auto const& Cur : Instances) {
-    //PostMessage(Cur->hwnd, WM_KEYDOWN, VK_F11, 0);
+void ToggleTextEditorInWindow(HWND hwnd) {
+  //PostMessage(Cur->hwnd, WM_KEYDOWN, VK_F11, 0);
     //PostMessage(Cur->hwnd, WM_KEYUP, VK_F11, 0);
     //SendMessage(Cur->hwnd, WM_KEYDOWN, VK_F11, 1);
     //SendMessage(Cur->hwnd, WM_KEYUP, VK_F11, 1);
 
-    BringWindowToTop(Cur->hwnd);
-    SetForegroundWindow(Cur->hwnd);
-    SetFocus(Cur->hwnd);
-    
-    /*
-    LPARAM lParam = (1 | (57 << 16)); // OEM Code and Repeat for WM_KEYDOWN
-    WPARAM wParam = VK_F11;
-    //PostMessage(HWND_BROADCAST, WM_KEYDOWN, wParam, lParam); // Works
-    //PostMessage(Cur->hwnd, WM_KEYDOWN, wParam, lParam); // Doesn't Work
-    SendMessage(Cur->hwnd, WM_KEYDOWN, wParam, lParam); // Works, but I need Post
-    */
-    
-    //*
+  BringWindowToTop(hwnd);
+  SetForegroundWindow(hwnd);
+  SetFocus(hwnd);
 
-    //Sleep(100);
+  /*
+  LPARAM lParam = (1 | (57 << 16)); // OEM Code and Repeat for WM_KEYDOWN
+  WPARAM wParam = VK_F11;
+  //PostMessage(HWND_BROADCAST, WM_KEYDOWN, wParam, lParam); // Works
+  //PostMessage(Cur->hwnd, WM_KEYDOWN, wParam, lParam); // Doesn't Work
+  SendMessage(Cur->hwnd, WM_KEYDOWN, wParam, lParam); // Works, but I need Post
+  */
 
-    INPUT ip;
+  //*
 
-    ip.type = INPUT_KEYBOARD;
-    ip.ki.wScan = 0x057; // bonzomatic use a weird scancode for F11, not sure what it is
-    ip.ki.time = 0;
-    ip.ki.dwExtraInfo = 0;
+  //Sleep(100);
 
-    ip.ki.wVk = VK_F11;
-    ip.ki.dwFlags = 0; // 0 for key press
-    SendInput(1, &ip, sizeof(INPUT));
+  INPUT ip;
 
-    ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
-    SendInput(1, &ip, sizeof(INPUT));
+  ip.type = INPUT_KEYBOARD;
+  ip.ki.wScan = 0x057; // bonzomatic use a weird scancode for F11, not sure what it is
+  ip.ki.time = 0;
+  ip.ki.dwExtraInfo = 0;
 
+  ip.ki.wVk = VK_F11;
+  ip.ki.dwFlags = 0; // 0 for key press
+  SendInput(1, &ip, sizeof(INPUT));
+
+  ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+  SendInput(1, &ip, sizeof(INPUT));
+}
+
+void ToggleTextEditor() {
+  WantTextEditor = !WantTextEditor;
+  for (auto const& Cur : Instances) {
+    ToggleTextEditorInWindow(Cur->hwnd);
   }
   FocusControlWindow();
 }
@@ -155,7 +161,7 @@ void UpdateDiaporama(float ElapsedTime) {
         if (DiapoCurrentIndex >= Instances.size()) {
           DiapoCurrentIndex = 0;
           DiapoCurrentLoop += 1;
-          if (DiapoCurrentLoop >= DiapoLoops) {
+          if (DiapoCurrentLoop >= DiapoLoops && !DiapoInfiniteLoop) {
             // end of diaporama
             DiapoLaunched = false;
             // staap
@@ -181,9 +187,8 @@ Instance::Instance()
 {
 }
 
-bool Instance::Init(int InstanceIndex, std::string InCoderName)
+bool Instance::Init(std::string InCoderName)
 {
-  Index = InstanceIndex;
   CoderName = InCoderName;
 
   memset(&siStartupInfo, 0, sizeof(siStartupInfo));
@@ -234,7 +239,7 @@ void Instance::Release()
 void Instance::Restart()
 {
   Release();
-  Init(Index, CoderName);
+  Init(CoderName);
 
   ChangeDisplay(DisplayAction::FirstDisplay);
 }
@@ -325,13 +330,10 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
   if (Action == DisplayAction::FirstDisplay || Action == DisplayAction::ShowMosaic) {
     GlobalIsFullscreen = false;
   }
-
-  if (Target) {
-    DiapoCurrentIndex = Target->Index;
-  }
-  
+    
   int CurIndex = 0;
-  for (auto const& Cur : Instances) {
+  for(int i=0; i<Instances.size(); ++i) {
+    auto const& Cur = Instances[i];
 
     int PosX = (CurIndex % NumColumn) * ColumnSize + PixelScreenOffsetX;
     int PosY = floor(CurIndex / NumColumn) * RowSize + PixelScreenOffsetY;
@@ -345,8 +347,13 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
       Cur->IsFullScreen = false;
     }
 
+    bool IsTarget = Target && Cur == Target;
+    if (IsTarget) {
+      DiapoCurrentIndex = i;
+    }
+
     if (Action == DisplayAction::SetFullscreen) {
-      if (Cur == Target) {
+      if (IsTarget) {
         int FullWidth = ScreenWidth * FullScreenPercentageX;
         int FullHeight = ScreenHeight * FullScreenPercentageY;
         int PixelFullScreenOffsetX = ScreenWidth * FullScreenOffsetX;
@@ -354,7 +361,7 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
 
         SetInstancePositionRatio(Cur, PixelFullScreenOffsetX, PixelFullScreenOffsetY, FullWidth, FullHeight, FullForceRatio, FullWantedRatio);
         Cur->IsFullScreen = true;
-        LastFullScreenIndex = Cur->Index;
+        LastFullScreenIndex = i;
       } else {
         Cur->IsFullScreen = false;
         SetMinimalPosition(Cur);
@@ -377,14 +384,24 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
 
 Instance* AddInstance(std::string CoderName) {
   Instance* NewInstance = new Instance();
-  int NewIndex = Instances.size();
-  if (NewInstance->Init(NewIndex, CoderName)) {
+  if (NewInstance->Init(CoderName)) {
     Instances.push_back(NewInstance);
-  }
-  else {
+    if (!WantTextEditor) {
+      ToggleTextEditorInWindow(NewInstance->hwnd);
+    }
+  } else {
     delete NewInstance;
   }
   return NewInstance;
+}
+
+void RemoveInstance(Instance* instance) {
+  if (!instance) return;
+  instance->Release();
+  auto FoundElement = std::find(Instances.begin(), Instances.end(), instance);
+  if(FoundElement != Instances.end()) {
+    Instances.erase(FoundElement);
+  }
 }
 
 bool LaunchInstances(jsonxx::Object options)
@@ -427,6 +444,7 @@ bool LaunchInstances(jsonxx::Object options)
     jsonxx::Object diapojson = options.get<jsonxx::Object>("diaporama");
     if (diapojson.has<jsonxx::Number>("delay")) DiapoDelay = diapojson.get<jsonxx::Number>("delay");
     if (diapojson.has<jsonxx::Number>("loops")) DiapoLoops = diapojson.get<jsonxx::Number>("loops");
+    if (diapojson.has<jsonxx::Boolean>("infiniteloop"))  DiapoInfiniteLoop = diapojson.get<jsonxx::Boolean>("infiniteloop");
   }
 
   bool UseNetwork = false;

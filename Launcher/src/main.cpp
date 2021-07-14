@@ -12,10 +12,14 @@
 #include <windows.h>
 
 // TODO:
-// button add to add a coder at runtime
-// button remove to remove a coder at runtime
+// X button add to add a coder at runtime
+// X button remove to remove a coder at runtime
+// - button to save current coder's list into the json config file
+// - button to reload json coder's list
+// - visible scrollbar you can use with the mouse
 //
 // bonzomatic: make mipmaps work so you can make blurry things (may not be ideal with raymarching as we dont have proper derivative)
+// X if launching a sender and shader is compiling, send a recompile command so attached grabber get the change (ex: deleting the shader and restarting with default one)
 //
 // ideas:
 // X if in diaporama and switching to a coder view, continue diaporama from there
@@ -24,7 +28,7 @@
 //    -> in fact, issue is that during a diaporama, windows get and loose focus (which prevent you from typing somewhere else) and can give focus back to control window
 // - option to reserve last quarter for DJ's cam or something
 // X for bonzomatic: sync the timer + have a button to reset them ?
-// - verify that bonzomatic does compile if recieving a shader after losing the source for a while ?
+
 /*
 m for mosaic view, d for diaporama, then 1 through 0 for the fullscreen view of the person
 and arrow keys to go next/previous
@@ -67,12 +71,11 @@ double WhatTime()
   return currentTime;
 }
 
-int main(int argc, const char *argv[])
-{
-  printf("[LAUNCHER] Started \n");
 
-  std::string configFile = "launcher.json";
-  jsonxx::Object options;
+std::string configFile = "launcher.json";
+jsonxx::Object options;
+
+void LoadConfigFile() {
   FILE * fConf = fopen(configFile.c_str(), "rb");
   if (fConf)
   {
@@ -85,6 +88,34 @@ int main(int argc, const char *argv[])
 
     options.parse(szConfig);
   }
+}
+
+void SaveConfigFile() {
+  
+  FILE * fConf = fopen(configFile.c_str(), "wb");
+  if (fConf)
+  {
+    jsonxx::Array newCoderArray;
+    std::vector<class Instance*>& Instances = GetInstances();
+    for (int i = 0; i < Instances.size(); ++i) {
+      Instance* Cur = Instances[i];
+      if (Cur) {
+        newCoderArray.append(Cur->CoderName);
+      }
+    }
+    options << "coders" << newCoderArray;
+    
+    std::string stroptions = options.json();
+    fwrite(stroptions.c_str(), stroptions.size(), 1, fConf);
+    fclose(fConf);
+  }
+}
+
+int main(int argc, const char *argv[])
+{
+  printf("[LAUNCHER] Started \n");
+
+  LoadConfigFile();
 
   FindDesktopResolution();
 
