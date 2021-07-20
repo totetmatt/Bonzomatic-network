@@ -74,10 +74,10 @@ Example: (all fields are optional)
     "loops": 1,
     "infiniteloop": false
   },
-	"network": {
-		"receiveuserlist": false,
-		"serverURL": "ws:\/\/drone.alkama.com:9000\/roomtest\/" 
-	},
+  "network": {
+	  "receiveuserlist": false,
+	  "serverURL": "ws:\/\/drone.alkama.com:9000\/roomtest\/" 
+  },
   "theme": {
     "background": "202020",
     "text": "FFFFFF",
