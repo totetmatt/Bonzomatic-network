@@ -75,8 +75,8 @@ Example: (all fields are optional)
     "infiniteloop": false
   },
   "network": {
-	  "receiveuserlist": false,
-	  "serverURL": "ws:\/\/drone.alkama.com:9000\/roomtest\/" 
+    "receiveuserlist": false,
+    "serverURL": "ws:\/\/drone.alkama.com:9000\/roomtest\/" 
   },
   "theme": {
     "background": "202020",
