@@ -735,6 +735,7 @@ namespace Renderer
   };
 
   int textureUnit = 0;
+  int RGBA8_textureUnit = -1;
 
   Texture * CreateRGBA8Texture()
   {
@@ -752,12 +753,19 @@ namespace Renderer
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    if (RGBA8_textureUnit < 0)
+    {
+      // Reuse the same textureUnit instead of using a new one each time
+      // this solve the issue with recreating the previous frame buffer each time you resize the screen
+      RGBA8_textureUnit = textureUnit++;
+    }
+
     GLTexture * tex = new GLTexture();
     tex->width = nWidth;
     tex->height = nHeight;
     tex->ID = glTexId;
     tex->type = TEXTURETYPE_2D;
-    tex->unit = textureUnit++;
+    tex->unit = RGBA8_textureUnit;
     return tex;
   }
 

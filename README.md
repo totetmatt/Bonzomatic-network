@@ -167,6 +167,7 @@ As you can see you're gonna need [CMAKE](https://cmake.org/) for this, but don't
 
 ### Windows
 Use at least [Visual C++ 2010](https://support.microsoft.com/ru-ru/help/2977003/the-latest-supported-visual-c-downloads). For the DX9/DX11 builds, obviously you'll be needing a [DirectX SDK](https://www.microsoft.com/en-us/download/details.aspx?id=6812), though a lot of it is already in the Windows 8.1 SDK as well.
+You will need to install NDI SDK and install Visual Studio with components ATL and MFC
 Then:
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ../
