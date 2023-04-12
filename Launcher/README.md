@@ -35,9 +35,10 @@ You can configure the launcher by tweaking the `launcher.json` that is next to t
 Example: (all fields are optional)
 ``` javascript
 {
-  "font": {
-    "file": "ProFontWindows.ttf",
-    "size": 16
+  "bonzo": {
+    "commandline": "skipdialog networkMode=grabber",
+    "delay_between_spawn": 2000,
+    "exename": "Bonzomatic_W64_GLFW.exe"
   },
   "coders": [
     "Coder_01",
@@ -45,49 +46,50 @@ Example: (all fields are optional)
     "Coder_03",
     "Coder_04"
   ],
-  "bonzo": {
-    "delay_between_spawn": 2000,
-    "commandline": "skipdialog networkMode=grabber",
-    "exename": "Bonzomatic_W64_GLFW.exe"
-  },
-  "mosaic": {
-    "startpercent_x": 0.05,
-    "startpercent_y": 0.05,
-    "sizepercent_x": 0.9,
-    "sizepercent_y": 0.9,
-    "border_x": 10,
-    "border_y": 10,
-    "forceratio": true,
-    "wantedratio": 1.7777,
-    "MosaicFixed": true
-  },
-  "fullscreen": {
-    "startpercent_x": 0.0,
-    "startpercent_y": 0.0,
-    "sizepercent_x": 1.0,
-    "sizepercent_y": 1.0,
-    "forceratio": true,
-    "wantedratio": 1.7777
-  },
   "diaporama": {
     "delay": 3,
     "loops": 1,
     "infiniteloop": false
   },
+  "font": {
+    "file": "ProFontWindows.ttf",
+    "size": 16
+  },
+  "fullscreen": {
+    "forceratio": true,
+    "sizepercent_x": 1,
+    "sizepercent_y": 1,
+    "startpercent_x": 0,
+    "startpercent_y": 0,
+    "wantedratio": 1.7777,
+    "codertogglemosaic":  false,
+  },
+  "mosaic": {
+    "MosaicFixed": false,
+    "border_x": 10,
+    "border_y": 10,
+    "forceratio": true,
+    "sizepercent_x": 0.9,
+    "sizepercent_y": 0.9,
+    "startpercent_x": 0.05,
+    "startpercent_y": 0.05,
+    "wantedratio": 1.7777
+  },
   "network": {
     "receiveuserlist": false,
-    "serverURL": "ws:\/\/drone.alkama.com:9000\/roomtest\/" 
+    "serverURL": "ws:\/\/drone.alkama.com:9000\/roomtest\/"
   },
   "theme": {
     "background": "202020",
-    "text": "FFFFFF",
     "button": "333333",
-    "buttonUncheck": "CC3333",
     "buttonBorder": "808080",
     "buttonBorderHover": "FF8080",
-    "buttonBorderPress": "FFFFFF"
+    "buttonBorderPress": "FFFFFF",
+    "buttonUncheck": "CC3333",
+    "text": "FFFFFF"
   }
-}
+} 
+
 ```
 
 This tool has been written by NuSan and is public domain.

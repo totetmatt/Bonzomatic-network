@@ -82,9 +82,12 @@ void ToggleFullscreen(int index) {
   }
 }
 
+bool CoderToggleMosaic = false;
 void ToggleFullscreen(Instance* Cur) {
   if (Cur->IsFullScreen) {
-    ChangeDisplay(DisplayAction::ShowMosaic, Cur);
+    if (CoderToggleMosaic) {
+      ChangeDisplay(DisplayAction::ShowMosaic, Cur);
+    }
   }
   else {
     ChangeDisplay(DisplayAction::SetFullscreen, Cur);
@@ -429,6 +432,7 @@ bool LaunchInstances(jsonxx::Object options)
     if (winjson.has<jsonxx::Number>("sizepercent_y")) FullScreenPercentageY = winjson.get<jsonxx::Number>("sizepercent_y");
     if (winjson.has<jsonxx::Boolean>("forceratio")) FullForceRatio = winjson.get<jsonxx::Boolean>("forceratio");
     if (winjson.has<jsonxx::Number>("wantedratio")) FullWantedRatio = winjson.get<jsonxx::Number>("wantedratio");
+    if (winjson.has<jsonxx::Boolean>("codertogglemosaic")) CoderToggleMosaic = winjson.get<jsonxx::Boolean>("codertogglemosaic");
   }
 
   if (options.has<jsonxx::Object>("bonzo"))
