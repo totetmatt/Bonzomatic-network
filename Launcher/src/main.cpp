@@ -12,22 +12,15 @@
 #include <windows.h>
 
 // TODO:
-// X button add to add a coder at runtime
-// X button remove to remove a coder at runtime
-// - button to save current coder's list into the json config file
 // - button to reload json coder's list
 // - visible scrollbar you can use with the mouse
-//
-// bonzomatic: make mipmaps work so you can make blurry things (may not be ideal with raymarching as we dont have proper derivative)
-// X if launching a sender and shader is compiling, send a recompile command so attached grabber get the change (ex: deleting the shader and restarting with default one)
-//
+
 // ideas:
-// X if in diaporama and switching to a coder view, continue diaporama from there
-// X have a button to kill/relaunch instance of one coder (if they crashed for example)
+
 // X chose better keys so psenough can type in chat ^^
 //    -> in fact, issue is that during a diaporama, windows get and loose focus (which prevent you from typing somewhere else) and can give focus back to control window
 // - option to reserve last quarter for DJ's cam or something
-// X for bonzomatic: sync the timer + have a button to reset them ?
+
 
 /*
 m for mosaic view, d for diaporama, then 1 through 0 for the fullscreen view of the person
@@ -36,7 +29,6 @@ when you're in fullscreen of someone
 also the standard bonzomatic hotkeys like f12 to show just the shader, if you press them with the controller window on focus it should affect all viewports
 and g to toggle the grid view i guess
 // ** shortcut: pressing ctrl + 1-0 display coder 11-20
-// bonzomatic display mode with big coder names even in no-editor mode
 // display fullscreen coder's name somewhere so it can also be chroma keyed
 
 */

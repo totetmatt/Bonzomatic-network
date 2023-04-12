@@ -154,17 +154,37 @@ bool mousebtn_right = false;
 bool mousebtn_press_left = false;
 bool mousebtn_press_mid = false;
 bool mousebtn_press_right = false;
+bool mousebtn_pressrepeat_left = false;
 
-void mouse_tick() {
+float mousebtn_lastpress_left = 1000.0f;
+float mousebtn_repeatdelay_left = 0.3f;
+
+void mouse_tick(float ElapsedTime) {
   mousebtn_press_left = false;
   mousebtn_press_mid = false;
   mousebtn_press_right = false;
+
+  // repeat
+  if (mousebtn_left) {
+    mousebtn_lastpress_left += ElapsedTime;
+    if (mousebtn_lastpress_left >= mousebtn_repeatdelay_left) {
+      mousebtn_lastpress_left -= mousebtn_repeatdelay_left;
+      mousebtn_pressrepeat_left = true;
+      mousebtn_repeatdelay_left = max(0.01f, mousebtn_repeatdelay_left * 0.8f);
+    } else {
+      mousebtn_pressrepeat_left = false;
+    }
+  }
+  else {
+    mousebtn_repeatdelay_left = 0.3f;
+    mousebtn_pressrepeat_left = false;
+  }
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
   if (button == GLFW_MOUSE_BUTTON_LEFT) {
-    if (action == GLFW_PRESS) { mousebtn_left = true; mousebtn_press_left = true; }
+    if (action == GLFW_PRESS) { mousebtn_left = true; mousebtn_press_left = true; mousebtn_lastpress_left = 0.0f;  }
     if (action == GLFW_RELEASE) mousebtn_left = false;
   }
   if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
@@ -384,12 +404,14 @@ bool CheckInside(int x, int y, int w, int h) {
       && mousepos_y > y && mousepos_y < (y + h);
 }
 
-bool Button(int x, int y, int w, int h, const char* Text) {
+bool Button(int x, int y, int w, int h, const char* Text, bool repeat=false) {
 
   bool IsInside = CheckInside(x, y, w, h);
 
+  bool Action = mousebtn_press_left || (repeat && mousebtn_pressrepeat_left);
+
   if (IsInside) {
-    if (mousebtn_press_left) {
+    if (Action) {
       SetColor(ColorButtonBorderPress);
     } else {
       SetColor(ColorButtonBorderHover);
@@ -405,7 +427,7 @@ bool Button(int x, int y, int w, int h, const char* Text) {
   SetColor(ColorText);
   DrawText(x+10, y + FontSize/4 + h/2, Text);
 
-  return mousebtn_press_left && IsInside;
+  return Action && IsInside;
 }
 
 bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
@@ -489,6 +511,10 @@ void UpdateControlWindow(float ElapsedTime) {
 
   if (bModeNewCoder) {
 
+    ///////////////
+    // New coder dialog
+    ///////////////
+
     InputText(20, PosY, nWidth - 40, 35, sNewCoderName.c_str());
     
     PosY += 50;
@@ -499,6 +525,10 @@ void UpdateControlWindow(float ElapsedTime) {
       ValidNewCoder();
     }
   } else {
+
+    ///////////////
+    // Buttons: add coder, save, options
+    ///////////////
 
     int MenuWidth = nWidth - 40;
     if (Button(20, PosY, MenuWidth * 0.4, 35, "Add Coder")) {
@@ -512,6 +542,40 @@ void UpdateControlWindow(float ElapsedTime) {
       bModeOptions = !bModeOptions;
     }
     PosY += 50;
+
+    ///////////////
+    // Diaporama buttons
+    ///////////////
+
+    extern float DiapoBPM;
+    std::string DelayText = tostr(DiapoBPM);
+    std::string DiapoTitle = "Diapo (" + DelayText + " bpm)";
+    if (Button(20, PosY, nWidth - 130, 35, DiapoTitle.c_str())) {
+      ToggleDiaporama();
+    }
+    if (Button(nWidth - 110, PosY, 30, 35, "-", true)) {
+      DiapoBPM = max(1, DiapoBPM - 1);
+    }
+    if (Button(nWidth - 80, PosY, 30, 35, "+", true)) {
+      DiapoBPM = DiapoBPM + 1;
+    }
+    extern bool DiapoInfiniteLoop;
+    if (ButtonCheck(nWidth - 50, PosY, 30, 35, "L", !DiapoInfiniteLoop)) {
+      DiapoInfiniteLoop = !DiapoInfiniteLoop;
+    }
+    UpdateDiaporama(ElapsedTime);
+    if (IsDiapoLaunched()) {
+      glColor3d(0, 1, 0);
+    }
+    else {
+      glColor3d(1, 0, 0);
+    }
+    DrawQuad(15, PosY, 5, 35);
+    PosY += 50;
+
+    ///////////////
+    // Mosaic button
+    ///////////////
 
     int VisibleInstances = 0;
     for (int i = 0; i < Instances.size(); ++i) {
@@ -527,31 +591,10 @@ void UpdateControlWindow(float ElapsedTime) {
       PressMosaic();
     }
     PosY += 50;
-    extern float DiapoDelay;
-    std::string DelayText = tostr(DiapoDelay);
-    std::string DiapoTitle = "Diaporama (" + DelayText + "s)";
-    if (Button(20, PosY, nWidth - 130, 35, DiapoTitle.c_str())) {
-      ToggleDiaporama();
-    }
-    if (Button(nWidth - 110, PosY, 30, 35, "-")) {
-      DiapoDelay = max(1, DiapoDelay - 1);
-    }
-    if (Button(nWidth - 80, PosY, 30, 35, "+")) {
-      DiapoDelay = DiapoDelay + 1;
-    }
-    extern bool DiapoInfiniteLoop;
-    if (ButtonCheck(nWidth - 50, PosY, 30, 35, "L", !DiapoInfiniteLoop)) {
-      DiapoInfiniteLoop = !DiapoInfiniteLoop;
-    }
-    UpdateDiaporama(ElapsedTime);
-    if (IsDiapoLaunched()) {
-      glColor3d(0, 1, 0);
-    }
-    else {
-      glColor3d(1, 0, 0);
-    }
-    DrawQuad(15, PosY, 5, 35);
-    PosY += 50;
+    
+    ///////////////
+    // Coders buttons
+    ///////////////
 
     for (int i = 0; i < Instances.size(); ++i) {
       Instance* Cur = Instances[i];
@@ -609,7 +652,10 @@ void UpdateControlWindow(float ElapsedTime) {
     }
     PosY += 20;
 
-    // scroolbar
+    ///////////////
+    // Scrollbar
+    ///////////////
+
     if (LastUIHeight > nHeight) {
       SetColor(ColorButton);
       DrawQuad(nWidth - 10, 0, 10, nHeight);
@@ -652,7 +698,7 @@ void UpdateControlWindow(float ElapsedTime) {
 
   TimeSinceStart += ElapsedTime;
 
-  mouse_tick();
+  mouse_tick(ElapsedTime);
   
   glfwSwapBuffers(mWindow);
   glfwPollEvents();

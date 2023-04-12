@@ -47,7 +47,7 @@ Example: (all fields are optional)
     "Coder_04"
   ],
   "diaporama": {
-    "delay": 3,
+    "bpm": 60,
     "loops": 1,
     "infiniteloop": false
   },

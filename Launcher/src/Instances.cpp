@@ -38,7 +38,7 @@ std::string ServerURL = "ws://127.0.0.1:8000/roomy/";
 std::vector<class Instance*> Instances;
 
 
-float DiapoDelay = 50.0f;
+float DiapoBPM = 60.0f;
 bool DiapoInfiniteLoop = false;
 int DiapoLoops = 1;
 int DiapoCurrentIndex = 0;
@@ -154,7 +154,7 @@ void StopDiaporama() {
 void UpdateDiaporama(float ElapsedTime) {
   if (DiapoLaunched) {
     DiapoCurrentTime += ElapsedTime;
-    if (DiapoCurrentTime >= DiapoDelay || DiapoCurrentIndex < 0) {
+    if (DiapoCurrentTime >= (60.0f/max(1.0f, DiapoBPM)) || DiapoCurrentIndex < 0) {
       DiapoCurrentTime = 0;
       // Go to next diapo
       
@@ -446,7 +446,7 @@ bool LaunchInstances(jsonxx::Object options)
   if (options.has<jsonxx::Object>("diaporama"))
   {
     jsonxx::Object diapojson = options.get<jsonxx::Object>("diaporama");
-    if (diapojson.has<jsonxx::Number>("delay")) DiapoDelay = diapojson.get<jsonxx::Number>("delay");
+    if (diapojson.has<jsonxx::Number>("bpm")) DiapoBPM = diapojson.get<jsonxx::Number>("bpm");
     if (diapojson.has<jsonxx::Number>("loops")) DiapoLoops = diapojson.get<jsonxx::Number>("loops");
     if (diapojson.has<jsonxx::Boolean>("infiniteloop"))  DiapoInfiniteLoop = diapojson.get<jsonxx::Boolean>("infiniteloop");
   }
