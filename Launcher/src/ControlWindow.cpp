@@ -705,9 +705,22 @@ void UpdateControlWindow(float ElapsedTime) {
     std::string VisibleCountText = tostr(VisibleInstances);
     std::string InstanceCountText = tostr(Instances.size());
     std::string MosaicTitle = "Mosaic (" + VisibleCountText + "/" + InstanceCountText + ")";
-    if (Button(20, PosY, nWidth - 40, 35, MosaicTitle.c_str())) {
+    if (Button(20, PosY, nWidth * 0.7 - 42, 35, MosaicTitle.c_str())) {
       PressMosaic();
     }
+    if (Button(20 + nWidth * 0.7 - 38, PosY, nWidth * 0.3, 35, "Random")) {
+      std::vector<Instance*> List;
+      for (int i = 0; i < Instances.size(); ++i) {
+        Instance* Cur = Instances[i];
+        if (!Cur->IsHidden && !Cur->IsFullScreen) {
+          List.push_back(Cur);
+        }
+      }
+      if (List.size() > 0) {
+        ToggleFullscreen(List[rand() % List.size()]);
+      }
+    }
+
     PosY += 40;
     
     ///////////////
