@@ -338,8 +338,8 @@ ThemeColor ColorText = { 1,1,1,1 };
 ThemeColor ColorButton = { 0.2,0.2,0.2,1 };
 ThemeColor ColorButtonUncheck = { 0.8,0.2,0.2,1 };
 ThemeColor ColorButtonUncheckHover = { 1.0,0.5,0.5,1 };
-ThemeColor ColorButtonBorder = { 0.5,0.5,0.5,1 };
-ThemeColor ColorButtonBorderHover = { 0.7,0.7,0.7,1 };
+ThemeColor ColorButtonBorder = { 0.4,0.4,0.4,1 };
+ThemeColor ColorButtonBorderHover = { 0.6,0.6,0.6,1 };
 ThemeColor ColorButtonBorderPress = { 1,1,1,1 };
 
 ThemeColor ParseColor(const std::string& color) {
@@ -476,9 +476,6 @@ bool Button(int x, int y, int w, int h, const char* Text, bool repeat=false) {
   }
   DrawQuad(x, y, w, h);
 
-  SetColor(ColorButton);
-  DrawQuad(x+5, y+5, w-10, h-10);
-
   SetColor(ColorText);
   DrawText(x+10, y + FontSize/4 + h/2, Text);
 
@@ -488,26 +485,30 @@ bool Button(int x, int y, int w, int h, const char* Text, bool repeat=false) {
 bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
 
   bool IsInside = CheckInside(x, y, w, h);
-
+  
   if (IsInside) {
     if (mousebtn_press_left) {
       SetColor(ColorButtonBorderPress);
     }
     else {
-      SetColor(ColorButtonBorderHover);
+      if (Status) {
+        SetColor(ColorButtonBorderHover);
+      }
+      else {
+        SetColor(ColorButtonUncheckHover);
+      }
     }
   }
   else {
-    SetColor(ColorButtonBorder);
+    if (Status) {
+      SetColor(ColorButtonBorder);
+    }
+    else {
+      SetColor(ColorButtonUncheck);
+    }
   }
 
   DrawQuad(x, y, w, h);
-  if (Status) {
-    SetColor(ColorButton);
-  } else {
-    SetColor(ColorButtonUncheck);
-  }
-  DrawQuad(x + 5, y + 5, w - 10, h - 10);
 
   SetColor(ColorText);
   DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
@@ -516,7 +517,6 @@ bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
 }
 
 bool ButtonIcon(int x, int y, int icon_x, int icon_y, bool repeat = false) {
-  y += 4; // align with regular buttons
   int w = 22;
   int h = 25;
   bool IsInside = CheckInside(x, y, w, h);
@@ -541,7 +541,6 @@ bool ButtonIcon(int x, int y, int icon_x, int icon_y, bool repeat = false) {
 }
 
 bool ButtonCheckIcon(int x, int y, int icon_x, int icon_y, bool Status) {
-  y += 4; // align with regular buttons
   int w = 22;
   int h = 25;
   bool IsInside = CheckInside(x, y, w, h);
@@ -626,7 +625,7 @@ void UpdateControlWindow(float ElapsedTime) {
   ScroolPositionY = max(0, min(ScroolPositionY, LastUIHeight - nHeight));
     
   int StartY = -ScroolPositionY;
-  int PosY = StartY + 20;
+  int PosY = StartY + 10;
 
   if (bModeNewCoder) {
 
@@ -636,7 +635,7 @@ void UpdateControlWindow(float ElapsedTime) {
 
     InputText(20, PosY, nWidth - 40, 35, sNewCoderName.c_str());
     
-    PosY += 50;
+    PosY += 40;
     if (Button(20, PosY, nWidth * 0.5 - 25, 35, "Cancel")) {
       bModeNewCoder = false;
     }
@@ -653,14 +652,14 @@ void UpdateControlWindow(float ElapsedTime) {
     if (Button(20, PosY, MenuWidth * 0.4, 35, "Add Coder")) {
       EnterNewCoderMode();
     }
-    if (Button(20 + MenuWidth * 0.4, PosY, MenuWidth * 0.3, 35, "Save")) {
+    if (Button(20 + MenuWidth * 0.4 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Save")) {
       extern void SaveConfigFile();
       SaveConfigFile();
     }
-    if (ButtonCheck(20 + MenuWidth * 0.7, PosY, MenuWidth * 0.3, 35, "Options", !bModeOptions)) {
+    if (ButtonCheck(20 + MenuWidth * 0.7 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Options", !bModeOptions)) {
       bModeOptions = !bModeOptions;
     }
-    PosY += 50;
+    PosY += 40;
 
     ///////////////
     // Diaporama buttons
@@ -672,14 +671,14 @@ void UpdateControlWindow(float ElapsedTime) {
     if (Button(20, PosY, nWidth - 117, 35, DiapoTitle.c_str())) {
       ToggleDiaporama();
     }
-    if (ButtonIcon(nWidth - 95, PosY, 1, 0, true)) { // minus
+    if (ButtonIcon(nWidth - 95, PosY + 4, 1, 0, true)) { // minus
       DiapoBPM = max(1, DiapoBPM - 1);
     }
-    if (ButtonIcon(nWidth - 70, PosY, 0, 0, true)) { // plus
+    if (ButtonIcon(nWidth - 70, PosY + 4, 0, 0, true)) { // plus
       DiapoBPM = DiapoBPM + 1;
     }
     extern bool DiapoInfiniteLoop;
-    if (ButtonCheckIcon(nWidth - 45, PosY, 2, 0, !DiapoInfiniteLoop)) {
+    if (ButtonCheckIcon(nWidth - 45, PosY + 4, 2, 0, !DiapoInfiniteLoop)) {
       DiapoInfiniteLoop = !DiapoInfiniteLoop;
     }
     UpdateDiaporama(ElapsedTime);
@@ -690,7 +689,7 @@ void UpdateControlWindow(float ElapsedTime) {
       glColor3d(1, 0, 0);
     }
     DrawQuad(15, PosY, 5, 35);
-    PosY += 50;
+    PosY += 40;
 
     ///////////////
     // Mosaic button
@@ -709,7 +708,7 @@ void UpdateControlWindow(float ElapsedTime) {
     if (Button(20, PosY, nWidth - 40, 35, MosaicTitle.c_str())) {
       PressMosaic();
     }
-    PosY += 50;
+    PosY += 40;
     
     ///////////////
     // Coders buttons
@@ -718,15 +717,22 @@ void UpdateControlWindow(float ElapsedTime) {
     for (int i = 0; i < Instances.size(); ++i) {
       Instance* Cur = Instances[i];
       int NameRightSize = bModeOptions ? 170 : 70;
-      if (Button(20, PosY, nWidth - NameRightSize, 35, Cur->CoderName.c_str())) {
+      int PosXName = 30;
+      int PosYButton = PosY - 1;
+      
+      std::string CoderNumber = tostr(i);
+      SetColor(ColorButtonBorderHover);
+      DrawText(PosXName - 8 - 8 * CoderNumber.length(), PosY + FontSize / 4 + 12, CoderNumber.c_str());
+
+      if (Button(PosXName, PosY, nWidth - NameRightSize - 10, 25, Cur->CoderName.c_str())) {
         ToggleFullscreen(Cur);
       }
-      if (ButtonCheckIcon(nWidth - NameRightSize + 24, PosY, 0, 2, !Cur->IsHidden)) { // show/hidden coder
+      if (ButtonCheckIcon(nWidth - NameRightSize + 24, PosYButton, 0, 2, !Cur->IsHidden)) { // show/hidden coder
         ToggleHidden(Cur);
       }
       if (bModeOptions) {
         bool UpdateDisplay = false;
-        if (i > 0 && ButtonIcon(nWidth - 120, PosY, 1, 1)) { // move up coder
+        if (i > 0 && ButtonIcon(nWidth - 120, PosYButton, 1, 1)) { // move up coder
           int other = i - 1;
           if (other >= 0) {
             Instance* tmp = Instances[other];
@@ -735,7 +741,7 @@ void UpdateControlWindow(float ElapsedTime) {
             UpdateDisplay = true;
           }
         }
-        if (i < Instances.size()-1 && ButtonIcon(nWidth - 95, PosY, 2, 1)) { // move down coder
+        if (i < Instances.size()-1 && ButtonIcon(nWidth - 95, PosYButton, 2, 1)) { // move down coder
           int other = i + 1;
           if (other < Instances.size()) {
             Instance* tmp = Instances[other];
@@ -748,10 +754,10 @@ void UpdateControlWindow(float ElapsedTime) {
           extern bool GlobalIsFullscreen;
           if(!GlobalIsFullscreen) ChangeDisplay(DisplayAction::ShowMosaic);
         }
-        if (ButtonIcon(nWidth - 70, PosY, 0, 1)) { // restart coder
+        if (ButtonIcon(nWidth - 70, PosYButton, 0, 1)) { // restart coder
           if (Cur) Cur->Restart();
         }
-        if (ButtonIcon(nWidth - 45, PosY, 3, 1)) { // delete coder
+        if (ButtonIcon(nWidth - 45, PosYButton, 3, 1)) { // delete coder
           if (Cur) {
             RemoveInstance(Cur);
             ChangeDisplay(DisplayAction::FirstDisplay);
@@ -759,15 +765,20 @@ void UpdateControlWindow(float ElapsedTime) {
           }
         }
       }
+      
+      // separator below the coder
+      glColor3d(0, 0, 0);
+      DrawQuad(PosXName, PosY+23, nWidth - NameRightSize, 2);
+
       if (Cur->IsFullScreen) {
         glColor3d(0, 1, 0);
       }
       else {
         glColor3d(1, 0, 0);
       }
-      DrawQuad(15, PosY, 5, 35);
+      DrawQuad(PosXName-5, PosY, 5, 23);
 
-      PosY += 40;
+      PosY += 25;
     }
     PosY += 20;
 
