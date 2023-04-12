@@ -19,6 +19,8 @@
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
+#include "icons.h"
+
 static void error_callback(int error, const char *description) {
   switch (error) {
   case GLFW_API_UNAVAILABLE:
@@ -221,7 +223,7 @@ void InitFont(std::string FontPath)
   size_t len = ftell(f);
   fseek(f, 0, SEEK_SET);
 
-  unsigned char* buf = (unsigned char*)malloc(len);
+  unsigned char* buf = new unsigned char[len];
   fread(buf, 1, len, f);
   fclose(f);
 
@@ -232,7 +234,20 @@ void InitFont(std::string FontPath)
   
   glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
 
-  // can free temp_bitmap at this point
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+  // can free buf at this point
+  delete[] buf;
+}
+
+GLuint itex;
+void InitIcons()
+{ 
+  glGenTextures(1, &itex);
+  glBindTexture(GL_TEXTURE_2D, itex);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, icons_width, icons_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, icons_data);
+
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
@@ -257,6 +272,30 @@ float DrawText(float x, float y, const char *text)
   }
   glEnd();
   return x;
+}
+
+void DrawIcon(int x, int y, int icon_x, int icon_y)
+{
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, itex);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glBegin(GL_QUADS);
+  int x1 = x;
+  int y1 = y;
+  int x2 = x + 32;
+  int y2 = y + 32;
+  float uv_dec_x = 1.0f / icons_cols;
+  float uv_dec_y = 1.0f / icons_rows;
+  float uv_x1 = icon_x * uv_dec_x;
+  float uv_y1 = icon_y * uv_dec_y;
+  float uv_x2 = (icon_x + 1) * uv_dec_x;
+  float uv_y2 = (icon_y + 1) * uv_dec_y;
+  glTexCoord2f(uv_x1, uv_y1); glVertex2f(x1, y1);
+  glTexCoord2f(uv_x2, uv_y1); glVertex2f(x2, y1);
+  glTexCoord2f(uv_x2, uv_y2); glVertex2f(x2, y2);
+  glTexCoord2f(uv_x1, uv_y2); glVertex2f(x1, y2);
+  glEnd();
 }
 
 void DrawQuad(int x, int y, int w, int h) {
@@ -285,8 +324,9 @@ ThemeColor ColorBackground = { 0.1,0.1,0.1,1 };
 ThemeColor ColorText = { 1,1,1,1 };
 ThemeColor ColorButton = { 0.2,0.2,0.2,1 };
 ThemeColor ColorButtonUncheck = { 0.8,0.2,0.2,1 };
+ThemeColor ColorButtonUncheckHover = { 1.0,0.5,0.5,1 };
 ThemeColor ColorButtonBorder = { 0.5,0.5,0.5,1 };
-ThemeColor ColorButtonBorderHover = { 1,0.5,0.5,1 };
+ThemeColor ColorButtonBorderHover = { 0.7,0.7,0.7,1 };
 ThemeColor ColorButtonBorderPress = { 1,1,1,1 };
 
 ThemeColor ParseColor(const std::string& color) {
@@ -375,6 +415,8 @@ bool InitControlWindow(jsonxx::Object options) {
     }
   }
   InitFont(FontPath);
+  InitIcons();
+
   if (options.has<jsonxx::Object>("theme"))
   {
     const auto& theme = options.get<jsonxx::Object>("theme");
@@ -456,6 +498,64 @@ bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
 
   SetColor(ColorText);
   DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
+
+  return mousebtn_press_left && IsInside;
+}
+
+bool ButtonIcon(int x, int y, int icon_x, int icon_y, bool repeat = false) {
+  y += 4; // align with regular buttons
+  int w = 22;
+  int h = 25;
+  bool IsInside = CheckInside(x, y, w, h);
+  
+  bool Action = mousebtn_press_left || (repeat && mousebtn_pressrepeat_left);
+  
+  if (IsInside) {
+    if (Action) {
+      SetColor(ColorButtonBorderPress);
+    }
+    else {
+      SetColor(ColorButtonBorderHover);
+    }
+  }
+  else {
+    SetColor(ColorButtonBorder);
+  }
+  
+  DrawIcon(x - 2, y - 2, icon_x, icon_y);
+
+  return Action && IsInside;
+}
+
+bool ButtonCheckIcon(int x, int y, int icon_x, int icon_y, bool Status) {
+  y += 4; // align with regular buttons
+  int w = 22;
+  int h = 25;
+  bool IsInside = CheckInside(x, y, w, h);
+  
+  if (IsInside) {
+    if (mousebtn_press_left) {
+      SetColor(ColorButtonBorderPress);
+    }
+    else {
+      if (Status) {
+        SetColor(ColorButtonBorderHover);
+      }
+      else {
+        SetColor(ColorButtonUncheckHover);
+      }
+    }
+  }
+  else {
+    if (Status) {
+      SetColor(ColorButtonBorder);
+    }
+    else {
+      SetColor(ColorButtonUncheck);
+    }
+  }
+
+  DrawIcon(x - 2, y - 2, icon_x, icon_y);
 
   return mousebtn_press_left && IsInside;
 }
@@ -550,17 +650,17 @@ void UpdateControlWindow(float ElapsedTime) {
     extern float DiapoBPM;
     std::string DelayText = tostr(DiapoBPM);
     std::string DiapoTitle = "Diapo (" + DelayText + " bpm)";
-    if (Button(20, PosY, nWidth - 130, 35, DiapoTitle.c_str())) {
+    if (Button(20, PosY, nWidth - 117, 35, DiapoTitle.c_str())) {
       ToggleDiaporama();
     }
-    if (Button(nWidth - 110, PosY, 30, 35, "-", true)) {
+    if (ButtonIcon(nWidth - 95, PosY, 1, 0, true)) { // minus
       DiapoBPM = max(1, DiapoBPM - 1);
     }
-    if (Button(nWidth - 80, PosY, 30, 35, "+", true)) {
+    if (ButtonIcon(nWidth - 70, PosY, 0, 0, true)) { // plus
       DiapoBPM = DiapoBPM + 1;
     }
     extern bool DiapoInfiniteLoop;
-    if (ButtonCheck(nWidth - 50, PosY, 30, 35, "L", !DiapoInfiniteLoop)) {
+    if (ButtonCheckIcon(nWidth - 45, PosY, 2, 0, !DiapoInfiniteLoop)) {
       DiapoInfiniteLoop = !DiapoInfiniteLoop;
     }
     UpdateDiaporama(ElapsedTime);
@@ -598,16 +698,16 @@ void UpdateControlWindow(float ElapsedTime) {
 
     for (int i = 0; i < Instances.size(); ++i) {
       Instance* Cur = Instances[i];
-      int NameRightSize = bModeOptions ? 200 : 70;
+      int NameRightSize = bModeOptions ? 170 : 70;
       if (Button(20, PosY, nWidth - NameRightSize, 35, Cur->CoderName.c_str())) {
         ToggleFullscreen(Cur);
       }
-      if (ButtonCheck(nWidth - NameRightSize + 20, PosY, 30, 35, "X", !Cur->IsHidden)) {
+      if (ButtonCheckIcon(nWidth - NameRightSize + 24, PosY, 0, 2, !Cur->IsHidden)) { // show/hidden coder
         ToggleHidden(Cur);
       }
       if (bModeOptions) {
         bool UpdateDisplay = false;
-        if (i > 0 && Button(nWidth - 140, PosY, 30, 35, "A")) {
+        if (i > 0 && ButtonIcon(nWidth - 120, PosY, 1, 1)) { // move up coder
           int other = i - 1;
           if (other >= 0) {
             Instance* tmp = Instances[other];
@@ -616,7 +716,7 @@ void UpdateControlWindow(float ElapsedTime) {
             UpdateDisplay = true;
           }
         }
-        if (i < Instances.size()-1 && Button(nWidth - 110, PosY, 30, 35, "V")) {
+        if (i < Instances.size()-1 && ButtonIcon(nWidth - 95, PosY, 2, 1)) { // move down coder
           int other = i + 1;
           if (other < Instances.size()) {
             Instance* tmp = Instances[other];
@@ -629,10 +729,10 @@ void UpdateControlWindow(float ElapsedTime) {
           extern bool GlobalIsFullscreen;
           if(!GlobalIsFullscreen) ChangeDisplay(DisplayAction::ShowMosaic);
         }
-        if (Button(nWidth - 80, PosY, 30, 35, "R")) {
+        if (ButtonIcon(nWidth - 70, PosY, 0, 1)) { // restart coder
           if (Cur) Cur->Restart();
         }
-        if (Button(nWidth - 50, PosY, 30, 35, "D")) {
+        if (ButtonIcon(nWidth - 45, PosY, 3, 1)) { // delete coder
           if (Cur) {
             RemoveInstance(Cur);
             ChangeDisplay(DisplayAction::FirstDisplay);
