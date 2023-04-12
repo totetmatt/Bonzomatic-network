@@ -121,6 +121,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_O: bModeOptions=!bModeOptions; break;
         case GLFW_KEY_F11: ToggleTextEditor(); break;
         case GLFW_KEY_0: ToggleFullscreen(FullIndexOffset + 9); break;
+        case GLFW_KEY_R: RandomFullscreen(); break;
         case GLFW_KEY_LEFT:
         case GLFW_KEY_UP:
           FullscreenPrev(); break;
@@ -626,20 +627,23 @@ void UpdateControlWindow(float ElapsedTime) {
     
   int StartY = -ScroolPositionY;
   int PosY = StartY + 10;
-
+  int LeftMargin = 20;
+  int RightMargin = 10;
+  int MenuWidth = nWidth - LeftMargin - RightMargin;
+  
   if (bModeNewCoder) {
 
     ///////////////
     // New coder dialog
     ///////////////
 
-    InputText(20, PosY, nWidth - 40, 35, sNewCoderName.c_str());
+    InputText(LeftMargin, PosY, MenuWidth, 35, sNewCoderName.c_str());
     
     PosY += 40;
-    if (Button(20, PosY, nWidth * 0.5 - 25, 35, "Cancel")) {
+    if (Button(LeftMargin, PosY, nWidth * 0.5 - RightMargin, 35, "Cancel")) {
       bModeNewCoder = false;
     }
-    if (Button(20 + nWidth * 0.5 - 15, PosY, nWidth * 0.5 - 25, 35, "Add Coder")) {
+    if (Button(LeftMargin + nWidth * 0.5 - 15, PosY, nWidth * 0.5 - RightMargin, 35, "Add Coder")) {
       ValidNewCoder();
     }
   } else {
@@ -648,15 +652,14 @@ void UpdateControlWindow(float ElapsedTime) {
     // Buttons: add coder, save, options
     ///////////////
 
-    int MenuWidth = nWidth - 40;
-    if (Button(20, PosY, MenuWidth * 0.4, 35, "Add Coder")) {
+    if (Button(LeftMargin, PosY, MenuWidth * 0.4, 35, "Add Coder")) {
       EnterNewCoderMode();
     }
-    if (Button(20 + MenuWidth * 0.4 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Save")) {
+    if (Button(LeftMargin + MenuWidth * 0.4 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Save")) {
       extern void SaveConfigFile();
       SaveConfigFile();
     }
-    if (ButtonCheck(20 + MenuWidth * 0.7 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Options", !bModeOptions)) {
+    if (ButtonCheck(LeftMargin + MenuWidth * 0.7 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Options", !bModeOptions)) {
       bModeOptions = !bModeOptions;
     }
     PosY += 40;
@@ -668,17 +671,18 @@ void UpdateControlWindow(float ElapsedTime) {
     extern float DiapoBPM;
     std::string DelayText = tostr(DiapoBPM);
     std::string DiapoTitle = "Diapo (" + DelayText + " bpm)";
-    if (Button(20, PosY, nWidth - 117, 35, DiapoTitle.c_str())) {
+    int DiapoButtons = 3;
+    if (Button(LeftMargin, PosY, MenuWidth - DiapoButtons * 25, 35, DiapoTitle.c_str())) {
       ToggleDiaporama();
     }
-    if (ButtonIcon(nWidth - 95, PosY + 4, 1, 0, true)) { // minus
+    if (ButtonIcon(MenuWidth - (DiapoButtons - 1) * 25, PosY + 4, 1, 0, true)) { // minus
       DiapoBPM = max(1, DiapoBPM - 1);
     }
-    if (ButtonIcon(nWidth - 70, PosY + 4, 0, 0, true)) { // plus
+    if (ButtonIcon(MenuWidth - (DiapoButtons - 2) * 25, PosY + 4, 0, 0, true)) { // plus
       DiapoBPM = DiapoBPM + 1;
     }
     extern bool DiapoInfiniteLoop;
-    if (ButtonCheckIcon(nWidth - 45, PosY + 4, 2, 0, !DiapoInfiniteLoop)) {
+    if (ButtonCheckIcon(MenuWidth - (DiapoButtons - 3) * 25, PosY + 4, 2, 0, !DiapoInfiniteLoop)) {
       DiapoInfiniteLoop = !DiapoInfiniteLoop;
     }
     UpdateDiaporama(ElapsedTime);
@@ -705,20 +709,11 @@ void UpdateControlWindow(float ElapsedTime) {
     std::string VisibleCountText = tostr(VisibleInstances);
     std::string InstanceCountText = tostr(Instances.size());
     std::string MosaicTitle = "Mosaic (" + VisibleCountText + "/" + InstanceCountText + ")";
-    if (Button(20, PosY, nWidth * 0.7 - 42, 35, MosaicTitle.c_str())) {
+    if (Button(LeftMargin, PosY, nWidth * 0.7 - LeftMargin  - RightMargin - 2, 35, MosaicTitle.c_str())) {
       PressMosaic();
     }
-    if (Button(20 + nWidth * 0.7 - 38, PosY, nWidth * 0.3, 35, "Random")) {
-      std::vector<Instance*> List;
-      for (int i = 0; i < Instances.size(); ++i) {
-        Instance* Cur = Instances[i];
-        if (!Cur->IsHidden && !Cur->IsFullScreen) {
-          List.push_back(Cur);
-        }
-      }
-      if (List.size() > 0) {
-        ToggleFullscreen(List[rand() % List.size()]);
-      }
+    if (Button(LeftMargin + nWidth * 0.7 - LeftMargin - RightMargin + 2, PosY, nWidth * 0.3, 35, "Random")) {
+      RandomFullscreen();
     }
 
     PosY += 40;
@@ -729,23 +724,26 @@ void UpdateControlWindow(float ElapsedTime) {
 
     for (int i = 0; i < Instances.size(); ++i) {
       Instance* Cur = Instances[i];
-      int NameRightSize = bModeOptions ? 170 : 70;
-      int PosXName = 30;
+      int ButtonCount = bModeOptions ? 5 : 1;
+      int NameRightSize = RightMargin + 15 + ButtonCount * 25;
+      int PosX = LeftMargin + 10;
       int PosYButton = PosY - 1;
       
       std::string CoderNumber = tostr(i);
       SetColor(ColorButtonBorderHover);
-      DrawText(PosXName - 8 - 8 * CoderNumber.length(), PosY + FontSize / 4 + 12, CoderNumber.c_str());
+      DrawText(PosX - 8 - 8 * CoderNumber.length(), PosY + FontSize / 4 + 12, CoderNumber.c_str());
 
-      if (Button(PosXName, PosY, nWidth - NameRightSize - 10, 25, Cur->CoderName.c_str())) {
+      if (Button(PosX, PosY, nWidth - NameRightSize - 10, 25, Cur->CoderName.c_str())) {
         ToggleFullscreen(Cur);
       }
-      if (ButtonCheckIcon(nWidth - NameRightSize + 24, PosYButton, 0, 2, !Cur->IsHidden)) { // show/hidden coder
+      PosX += nWidth - NameRightSize - 8;
+      if (ButtonCheckIcon(PosX, PosYButton, 0, 2, !Cur->IsHidden)) { // show/hidden coder
         ToggleHidden(Cur);
       }
+      PosX += 25;
       if (bModeOptions) {
         bool UpdateDisplay = false;
-        if (i > 0 && ButtonIcon(nWidth - 120, PosYButton, 1, 1)) { // move up coder
+        if (i > 0 && ButtonIcon(PosX, PosYButton, 1, 1)) { // move up coder
           int other = i - 1;
           if (other >= 0) {
             Instance* tmp = Instances[other];
@@ -754,7 +752,8 @@ void UpdateControlWindow(float ElapsedTime) {
             UpdateDisplay = true;
           }
         }
-        if (i < Instances.size()-1 && ButtonIcon(nWidth - 95, PosYButton, 2, 1)) { // move down coder
+        PosX += 25;
+        if (i < Instances.size()-1 && ButtonIcon(PosX, PosYButton, 2, 1)) { // move down coder
           int other = i + 1;
           if (other < Instances.size()) {
             Instance* tmp = Instances[other];
@@ -763,14 +762,16 @@ void UpdateControlWindow(float ElapsedTime) {
             UpdateDisplay = true;
           }
         }
+        PosX += 25;
         if (UpdateDisplay) {
           extern bool GlobalIsFullscreen;
           if(!GlobalIsFullscreen) ChangeDisplay(DisplayAction::ShowMosaic);
         }
-        if (ButtonIcon(nWidth - 70, PosYButton, 0, 1)) { // restart coder
+        if (ButtonIcon(PosX, PosYButton, 0, 1)) { // restart coder
           if (Cur) Cur->Restart();
         }
-        if (ButtonIcon(nWidth - 45, PosYButton, 3, 1)) { // delete coder
+        PosX += 25;
+        if (ButtonIcon(PosX, PosYButton, 3, 1)) { // delete coder
           if (Cur) {
             RemoveInstance(Cur);
             ChangeDisplay(DisplayAction::FirstDisplay);
@@ -781,7 +782,7 @@ void UpdateControlWindow(float ElapsedTime) {
       
       // separator below the coder
       glColor3d(0, 0, 0);
-      DrawQuad(PosXName, PosY+23, nWidth - NameRightSize, 2);
+      DrawQuad(LeftMargin + 10, PosY+23, nWidth - NameRightSize, 2);
 
       if (Cur->IsFullScreen) {
         glColor3d(0, 1, 0);
@@ -789,7 +790,7 @@ void UpdateControlWindow(float ElapsedTime) {
       else {
         glColor3d(1, 0, 0);
       }
-      DrawQuad(PosXName-5, PosY, 5, 23);
+      DrawQuad(LeftMargin + 5, PosY, 5, 23);
 
       PosY += 25;
     }

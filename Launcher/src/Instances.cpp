@@ -94,6 +94,19 @@ void ToggleFullscreen(Instance* Cur) {
   }
 }
 
+void RandomFullscreen() {
+  std::vector<Instance*> List;
+  for (int i = 0; i < Instances.size(); ++i) {
+    Instance* Cur = Instances[i];
+    if (!Cur->IsHidden && !Cur->IsFullScreen) {
+      List.push_back(Cur);
+    }
+  }
+  if (List.size() > 0) {
+    ToggleFullscreen(List[rand() % List.size()]);
+  }
+}
+
 void ToggleTextEditorInWindow(HWND hwnd) {
   //PostMessage(Cur->hwnd, WM_KEYDOWN, VK_F11, 0);
     //PostMessage(Cur->hwnd, WM_KEYUP, VK_F11, 0);
@@ -204,6 +217,7 @@ bool Instance::Init(std::string InCoderName)
   std::string CommandLine = ServerCommand + std::string(" ") + ConfigCommandLine;
   char* CommandString = new char[CommandLine.size() + 1];
   strncpy_s(CommandString, (CommandLine.size() + 1), CommandLine.c_str(), (CommandLine.size() + 1));
+
 
   DWORD dwExitCode = 0;
   if (CreateProcessA(ExecutableName.c_str(),

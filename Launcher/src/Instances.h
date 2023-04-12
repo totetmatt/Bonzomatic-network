@@ -42,6 +42,7 @@ void FullscreenPrev();
 void FullscreenNext();
 void ToggleFullscreen(int index);
 void ToggleFullscreen(Instance* Cur);
+void RandomFullscreen();
 void ToggleTextEditor();
 
 void StartDiaporama();
