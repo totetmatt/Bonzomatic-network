@@ -36,6 +36,7 @@ static void error_callback(int error, const char *description) {
 bool bModeNewCoder = false;
 std::string sNewCoderName = "";
 bool bModeOptions = false;
+int NewCoderMaxLength = 100;
 
 int nWidth = 300;
 int nHeight = 800;
@@ -97,6 +98,15 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
           break;
         case GLFW_KEY_ENTER:
           ValidNewCoder();
+        case GLFW_KEY_V:
+          if (mods & GLFW_MOD_CONTROL) {
+            std::string paste_string = glfwGetClipboardString(window);
+            for (int i = 0; i < min(paste_string.length(), NewCoderMaxLength); ++i) {
+              if (paste_string[i] != ' ') {
+                sNewCoderName += paste_string[i];
+              }
+            }
+          }
           break;
         default:
           break;
@@ -132,6 +142,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void character_callback(GLFWwindow* window, unsigned int codepoint)
 {
+  if (!bModeNewCoder || sNewCoderName.length() >= NewCoderMaxLength) {
+    return;
+  }
   // space are not allowed in names
   if (codepoint == GLFW_KEY_SPACE) return;
   // TODO: will only work for ascii characters
@@ -561,7 +574,13 @@ bool ButtonCheckIcon(int x, int y, int icon_x, int icon_y, bool Status) {
 }
 
 float TimeSinceStart = 0.0;
-void InputText(int x, int y, int w, int h, const char* Text) {
+void InputText(int x, int y, int w, int h, const char* InText) {
+
+  std::string Text = InText;
+  const int MaxDisplayCharacter = max(1, w * 2 / FontSize -4);
+  if (Text.length() > MaxDisplayCharacter) {
+    Text = "-" + Text.substr(Text.length() - MaxDisplayCharacter, MaxDisplayCharacter);
+  }
 
   SetColor(ColorButtonBorderHover);
   DrawQuad(x, y, w, h);
@@ -569,7 +588,7 @@ void InputText(int x, int y, int w, int h, const char* Text) {
   DrawQuad(x + 5, y + 5, w - 10, h - 10);
 
   SetColor(ColorText);
-  float TextEndPos = DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
+  float TextEndPos = DrawText(x + 10, y + FontSize / 4 + h / 2, Text.c_str());
   // carret
   SetColor(((int)(TimeSinceStart*2))%2 == 0 ? ColorButtonBorder : ColorButtonBorderHover);
   DrawQuad(TextEndPos + 2, y - FontSize / 2 + h / 2, 4, FontSize);
