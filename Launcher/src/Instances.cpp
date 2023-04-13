@@ -6,28 +6,44 @@
 #include <string>
 #include <assert.h>
 
+#define GLFW_INCLUDE_NONE
+#include "GLFW/glfw3.h"
+
 bool MosaicFixed = false;
 
-int ScreenWidth = 0;
-int ScreenHeight = 0;
+struct ScreenArea {
+  int Monitor = 0;
+  int PosX = 0;
+  int PosY = 0;
+  int Width = 1;
+  int Height = 1;
+  float PercentStartX;
+  float PercentStartY;
+  float PercentWidth;
+  float PercentHeight;
+  int BlankSpaceX = 10;
+  int BlankSpaceY = 10;
+  bool ForceRatio = true;
+  float WantedRatio = 1.7777f;
+  ScreenArea(int _Monitor, float _PercentStartX, float _PercentStartY, float _PercentWidth, float _PercentHeight) {
+    Monitor = _Monitor;
+    PercentStartX = _PercentStartX;
+    PercentStartY = _PercentStartY;
+    PercentWidth = _PercentWidth;
+    PercentHeight = _PercentHeight;
+  }
+};
 
-float ScreenOffsetX = 0.1f;
-float ScreenOffsetY = 0.1f;
-
-float ScreenPercentageX = 0.8f;
-float ScreenPercentageY = 0.8f;
-
-int ScreenBlankSpaceX = 30;
-int ScreenBlankSpaceY = 30;
-
-float FullScreenOffsetX = 0.1f;
-float FullScreenOffsetY = 0.1f;
-
-float FullScreenPercentageX = 0.8f;
-float FullScreenPercentageY = 0.8f;
+bool UseSecondaryScreen = true;
+ScreenArea ScreenMain(0, 0.0f, 0.0f, 1.0f, 1.0f);
+ScreenArea ScreenSecondary(1, 0.3f, 0.3f, 0.4f, 0.4f);
+ScreenArea ScreenFull(0, 0.05f, 0.05f, 0.9f, 0.9f);
 
 bool GlobalIsFullscreen = false;
 int LastFullScreenIndex = -1;
+
+int MonitorCount = 0;
+GLFWmonitor** Monitors;
 
 int DelayInitWindows = 500;
 std::string ConfigCommandLine = "skipdialog networkMode=grabber";
@@ -302,12 +318,18 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
   return TRUE;
 }
 
-void FindDesktopResolution() {
-  RECT desktop;
-  const HWND hDesktop = GetDesktopWindow();
-  GetWindowRect(hDesktop, &desktop);
-  ScreenWidth = desktop.right - desktop.left;
-  ScreenHeight = desktop.bottom - desktop.top;
+void InitScreenAreaMonitor(ScreenArea* Area) {
+  if (Area->Monitor >= 0 && Area->Monitor < MonitorCount) {
+    glfwGetMonitorWorkarea(Monitors[Area->Monitor], &Area->PosX, &Area->PosY, &Area->Width, &Area->Height);
+  }
+}
+
+void UpdateMonitors() {
+  // init monitors
+  Monitors = glfwGetMonitors(&MonitorCount);
+  InitScreenAreaMonitor(&ScreenMain);
+  InitScreenAreaMonitor(&ScreenSecondary);
+  InitScreenAreaMonitor(&ScreenFull);
 }
 
 void ToggleHidden(Instance* Target) {
@@ -317,11 +339,6 @@ void ToggleHidden(Instance* Target) {
     ShowMosaic();
   }
 }
-
-bool GridForceRatio = false;
-float GridWantedRatio = 1.7777f;
-bool FullForceRatio = false;
-float FullWantedRatio = 1.7777f;
 
 void SetInstancePositionRatio(Instance* Cur, int PosX, int PosY, int Width, int Height, bool UseRatio, float WantedRatio) {
 
@@ -349,10 +366,17 @@ void SetMinimalPosition(Instance* Cur) {
 
 void RefreshDisplay() {
 
-  int TableWidth = ScreenWidth * ScreenPercentageX;
-  int TableHeight = ScreenHeight * ScreenPercentageY;
-  int PixelScreenOffsetX = ScreenWidth * ScreenOffsetX;
-  int PixelScreenOffsetY = ScreenHeight * ScreenOffsetY;
+  bool IsFullScreen = GlobalIsFullscreen;
+  
+  ScreenArea* Mosaic = &ScreenMain;
+  if (IsFullScreen && UseSecondaryScreen) {
+    Mosaic = &ScreenSecondary;
+  }
+  
+  int FullWidth = ScreenFull.Width * ScreenFull.PercentWidth;
+  int FullHeight = ScreenFull.Height * ScreenFull.PercentHeight;
+  int PixelFullScreenOffsetX = ScreenFull.Width * ScreenFull.PercentStartX + ScreenFull.PosX;
+  int PixelFullScreenOffsetY = ScreenFull.Height * ScreenFull.PercentStartY + ScreenFull.PosY;
 
   int NumberOfInstances = 0;
   for (int i = 0; i < Instances.size(); ++i) {
@@ -363,36 +387,38 @@ void RefreshDisplay() {
   
   int NumColumn = NumberOfInstances < 1 ? 1 : ceil(sqrt(NumberOfInstances));
   int NumRow = NumberOfInstances < 1 ? 1 : ceil(float(NumberOfInstances) / NumColumn);
-  int ColumnSize = TableWidth / NumColumn;
-  int RowSize = TableHeight / NumRow;
-
-  bool IsFullScreen = GlobalIsFullscreen;
-
+  int TotalBlankX = max(0, NumColumn - 1) * Mosaic->BlankSpaceX;
+  int TotalBlankY = max(0, NumRow - 1) * Mosaic->BlankSpaceY;
+  int ColumnSize = (Mosaic->Width * Mosaic->PercentWidth - TotalBlankX)/ NumColumn;
+  int RowSize = (Mosaic->Height * Mosaic->PercentHeight - TotalBlankX) / NumRow;
+  int PixelScreenOffsetX = Mosaic->Width * Mosaic->PercentStartX + Mosaic->PosX;
+  int PixelScreenOffsetY = Mosaic->Height * Mosaic->PercentStartY + Mosaic->PosY;
+  
   int CurIndex = 0;
   for (int i = 0; i < Instances.size(); ++i) {
     auto const& Cur = Instances[i];
 
-    int PosX = (CurIndex % NumColumn) * ColumnSize + PixelScreenOffsetX;
-    int PosY = floor(CurIndex / NumColumn) * RowSize + PixelScreenOffsetY;
+    int PosX = (CurIndex % NumColumn) * (ColumnSize + Mosaic->BlankSpaceX) + PixelScreenOffsetX;
+    int PosY = floor(CurIndex / NumColumn) * (RowSize + Mosaic->BlankSpaceY) + PixelScreenOffsetY;
 
     if (IsFullScreen) {
       if (Cur->IsFullScreen) {
-        int FullWidth = ScreenWidth * FullScreenPercentageX;
-        int FullHeight = ScreenHeight * FullScreenPercentageY;
-        int PixelFullScreenOffsetX = ScreenWidth * FullScreenOffsetX;
-        int PixelFullScreenOffsetY = ScreenHeight * FullScreenOffsetY;
-
-        SetInstancePositionRatio(Cur, PixelFullScreenOffsetX, PixelFullScreenOffsetY, FullWidth, FullHeight, FullForceRatio, FullWantedRatio);
+        SetInstancePositionRatio(Cur, PixelFullScreenOffsetX, PixelFullScreenOffsetY, FullWidth, FullHeight, ScreenFull.ForceRatio, ScreenFull.WantedRatio);
       }
       else {
-        SetMinimalPosition(Cur);
+        if (UseSecondaryScreen) {
+          SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize, RowSize, Mosaic->ForceRatio, Mosaic->WantedRatio);
+        }
+        else {
+          SetMinimalPosition(Cur);
+        }
       }
     } else {
       if (Cur->IsHidden) {
         SetMinimalPosition(Cur);
       }
       else {
-        SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize - ScreenBlankSpaceX, RowSize - ScreenBlankSpaceY, GridForceRatio, GridWantedRatio);
+        SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize, RowSize, Mosaic->ForceRatio, Mosaic->WantedRatio);
       }
     }
     
@@ -424,33 +450,42 @@ void RemoveInstance(Instance* instance) {
   }
 }
 
+void LoadScreenOptions(jsonxx::Object& winjson, ScreenArea* Area) {
+  if (winjson.has<jsonxx::Number>("monitor")) Area->Monitor = max(0, int(winjson.get<jsonxx::Number>("monitor")));
+  if (winjson.has<jsonxx::Number>("startpercent_x")) Area->PercentStartX = winjson.get<jsonxx::Number>("startpercent_x");
+  if (winjson.has<jsonxx::Number>("startpercent_y")) Area->PercentStartY = winjson.get<jsonxx::Number>("startpercent_y");
+  if (winjson.has<jsonxx::Number>("sizepercent_x")) Area->PercentWidth = winjson.get<jsonxx::Number>("sizepercent_x");
+  if (winjson.has<jsonxx::Number>("sizepercent_y")) Area->PercentHeight = winjson.get<jsonxx::Number>("sizepercent_y");
+  if (winjson.has<jsonxx::Number>("border_x")) Area->BlankSpaceX = winjson.get<jsonxx::Number>("border_x");
+  if (winjson.has<jsonxx::Number>("border_y")) Area->BlankSpaceY = winjson.get<jsonxx::Number>("border_y");
+  if (winjson.has<jsonxx::Boolean>("forceratio")) Area->ForceRatio = winjson.get<jsonxx::Boolean>("forceratio");
+  if (winjson.has<jsonxx::Number>("wantedratio")) Area->WantedRatio = winjson.get<jsonxx::Number>("wantedratio");
+}
+
 bool LaunchInstances(jsonxx::Object options)
 {
   if (options.has<jsonxx::Object>("mosaic"))
   {
     jsonxx::Object winjson = options.get<jsonxx::Object>("mosaic");
-    if (winjson.has<jsonxx::Number>("startpercent_x")) ScreenOffsetX = winjson.get<jsonxx::Number>("startpercent_x");
-    if (winjson.has<jsonxx::Number>("startpercent_y")) ScreenOffsetY = winjson.get<jsonxx::Number>("startpercent_y");
-    if (winjson.has<jsonxx::Number>("sizepercent_x")) ScreenPercentageX = winjson.get<jsonxx::Number>("sizepercent_x");
-    if (winjson.has<jsonxx::Number>("sizepercent_y")) ScreenPercentageY = winjson.get<jsonxx::Number>("sizepercent_y");
-    if (winjson.has<jsonxx::Number>("border_x")) ScreenBlankSpaceX = winjson.get<jsonxx::Number>("border_x");
-    if (winjson.has<jsonxx::Number>("border_y")) ScreenBlankSpaceY = winjson.get<jsonxx::Number>("border_y");
-    if (winjson.has<jsonxx::Boolean>("forceratio")) GridForceRatio = winjson.get<jsonxx::Boolean>("forceratio");
-    if (winjson.has<jsonxx::Number>("wantedratio")) GridWantedRatio = winjson.get<jsonxx::Number>("wantedratio");
+    LoadScreenOptions(winjson, &ScreenMain);
     if (winjson.has<jsonxx::Boolean>("MosaicFixed")) MosaicFixed = winjson.get<jsonxx::Boolean>("MosaicFixed");
   }
 
   if (options.has<jsonxx::Object>("fullscreen"))
   {
     jsonxx::Object winjson = options.get<jsonxx::Object>("fullscreen");
-    if (winjson.has<jsonxx::Number>("startpercent_x")) FullScreenOffsetX = winjson.get<jsonxx::Number>("startpercent_x");
-    if (winjson.has<jsonxx::Number>("startpercent_y")) FullScreenOffsetY = winjson.get<jsonxx::Number>("startpercent_y");
-    if (winjson.has<jsonxx::Number>("sizepercent_x")) FullScreenPercentageX = winjson.get<jsonxx::Number>("sizepercent_x");
-    if (winjson.has<jsonxx::Number>("sizepercent_y")) FullScreenPercentageY = winjson.get<jsonxx::Number>("sizepercent_y");
-    if (winjson.has<jsonxx::Boolean>("forceratio")) FullForceRatio = winjson.get<jsonxx::Boolean>("forceratio");
-    if (winjson.has<jsonxx::Number>("wantedratio")) FullWantedRatio = winjson.get<jsonxx::Number>("wantedratio");
+    LoadScreenOptions(winjson, &ScreenFull);
     if (winjson.has<jsonxx::Boolean>("codertogglemosaic")) CoderToggleMosaic = winjson.get<jsonxx::Boolean>("codertogglemosaic");
   }
+
+  if (options.has<jsonxx::Object>("secondary"))
+  {
+    jsonxx::Object winjson = options.get<jsonxx::Object>("secondary");
+    if (winjson.has<jsonxx::Boolean>("use")) UseSecondaryScreen = winjson.get<jsonxx::Boolean>("use");
+    LoadScreenOptions(winjson, &ScreenSecondary);
+  }
+
+  UpdateMonitors();
 
   if (options.has<jsonxx::Object>("bonzo"))
   {
@@ -475,7 +510,7 @@ bool LaunchInstances(jsonxx::Object options)
     if (netjson.has<jsonxx::Boolean>("receiveuserlist")) UseNetwork = netjson.get<jsonxx::Boolean>("receiveuserlist");
     if (netjson.has<jsonxx::String>("serverURL")) ServerURL = netjson.get<jsonxx::String>("serverURL");
   }
-
+  
   if (UseNetwork) {
     // TODO
   } else {

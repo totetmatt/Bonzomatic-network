@@ -11,6 +11,7 @@ The tool can:
 - Display one of the windows in fullscreen while hiding all the others
 - Launching a diaporama of all the windows
 - Toggleing text editor on all the bonzo windows by pressing F11 in the control Windows
+- Move the mosaic on a secondary screen while a coder is in full screen, so you can choose the next with a preview
 
 By resizing the bonzomatic windows, this tool let them take more or less of the GPU power. With this, you can have dozen's of coder's shader running on one PC while still maintaining a good framerate and being able to put one in fullscreen when you want.
 For streaming, the best is to dedicace one screen with a neutral background where all the bonzomatic windows will be placed and the whole screen will be reccorded
@@ -21,6 +22,7 @@ To use it, just unzip it in same folder as Bonzomatic Network.
 - M: Show mosaic mode
 - D: Launch a diaporama
 - O: Toggle displaying options
+- R: Put a random coder in full screen
 - A: Add a new coder
 - [0-9]: coders 1-10 in full screen
 - ctrl+[0-9]: coders 11-20 in full screen
@@ -37,7 +39,7 @@ Example: (all fields are optional)
 {
   "bonzo": {
     "commandline": "skipdialog networkMode=grabber",
-    "delay_between_spawn": 2000,
+    "delay_between_spawn": 500,
     "exename": "Bonzomatic_W64_GLFW.exe"
   },
   "coders": [
@@ -48,31 +50,42 @@ Example: (all fields are optional)
   ],
   "diaporama": {
     "bpm": 60,
-    "loops": 1,
-    "infiniteloop": false
+    "infiniteloop": false,
+    "loops": 1
   },
   "font": {
     "file": "ProFontWindows.ttf",
     "size": 16
   },
   "fullscreen": {
+    "codertogglemosaic": false,
+    "monitor": 0,
     "forceratio": true,
     "sizepercent_x": 1,
     "sizepercent_y": 1,
     "startpercent_x": 0,
     "startpercent_y": 0,
-    "wantedratio": 1.7777,
-    "codertogglemosaic":  false,
+    "wantedratio": 1.7777
   },
   "mosaic": {
+    "monitor": 0,
     "MosaicFixed": false,
-    "border_x": 10,
-    "border_y": 10,
     "forceratio": true,
     "sizepercent_x": 0.9,
     "sizepercent_y": 0.9,
     "startpercent_x": 0.05,
     "startpercent_y": 0.05,
+    "wantedratio": 1.7777
+  },
+  "secondary": {
+    "use":  true,
+    "monitor": 1,
+    "MosaicFixed": false,
+    "forceratio": true,
+    "sizepercent_x": 0.4,
+    "sizepercent_y": 0.4,
+    "startpercent_x": 0.4,
+    "startpercent_y": 0.4,
     "wantedratio": 1.7777
   },
   "network": {
@@ -81,15 +94,14 @@ Example: (all fields are optional)
   },
   "theme": {
     "background": "202020",
-    "button": "333333",
-    "buttonBorder": "808080",
-    "buttonBorderHover": "FF8080",
-    "buttonBorderPress": "FFFFFF",
+    "text": "FFFFFF",
+    "button": "666666",
+    "buttonHover": "999999",
+    "buttonPress": "FFFFFF",
     "buttonUncheck": "CC3333",
-    "text": "FFFFFF"
+    "buttonUncheckHover": "FF8080"
   }
 } 
-
 ```
 
 This tool has been written by NuSan and is public domain.

@@ -336,12 +336,11 @@ struct ThemeColor {
 };
 ThemeColor ColorBackground = { 0.1,0.1,0.1,1 };
 ThemeColor ColorText = { 1,1,1,1 };
-ThemeColor ColorButton = { 0.2,0.2,0.2,1 };
+ThemeColor ColorButton = { 0.4,0.4,0.4,1 };
+ThemeColor ColorButtonHover = { 0.6,0.6,0.6,1 };
+ThemeColor ColorButtonPress = { 1,1,1,1 };
 ThemeColor ColorButtonUncheck = { 0.8,0.2,0.2,1 };
 ThemeColor ColorButtonUncheckHover = { 1.0,0.5,0.5,1 };
-ThemeColor ColorButtonBorder = { 0.4,0.4,0.4,1 };
-ThemeColor ColorButtonBorderHover = { 0.6,0.6,0.6,1 };
-ThemeColor ColorButtonBorderPress = { 1,1,1,1 };
 
 ThemeColor ParseColor(const std::string& color) {
   if (color.size() < 6 || color.size() > 8) return { 1,1,1 };
@@ -440,14 +439,14 @@ bool InitControlWindow(jsonxx::Object options) {
       ColorText = ParseColor(theme.get<jsonxx::String>("text"));
     if (theme.has<jsonxx::String>("button"))
       ColorButton = ParseColor(theme.get<jsonxx::String>("button"));
+    if (theme.has<jsonxx::String>("buttonHover"))
+      ColorButtonHover = ParseColor(theme.get<jsonxx::String>("buttonHover"));
+    if (theme.has<jsonxx::String>("buttonPress"))
+      ColorButtonPress = ParseColor(theme.get<jsonxx::String>("buttonPress"));
     if (theme.has<jsonxx::String>("buttonUncheck"))
       ColorButtonUncheck = ParseColor(theme.get<jsonxx::String>("buttonUncheck"));
-    if (theme.has<jsonxx::String>("buttonBorder"))
-      ColorButtonBorder = ParseColor(theme.get<jsonxx::String>("buttonBorder"));
-    if (theme.has<jsonxx::String>("buttonBorderHover"))
-      ColorButtonBorderHover = ParseColor(theme.get<jsonxx::String>("buttonBorderHover"));
-    if (theme.has<jsonxx::String>("buttonBorderPress"))
-      ColorButtonBorderPress = ParseColor(theme.get<jsonxx::String>("buttonBorderPress"));
+    if (theme.has<jsonxx::String>("buttonUncheckHover"))
+      ColorButtonUncheckHover = ParseColor(theme.get<jsonxx::String>("buttonUncheckHover"));    
   }
 
   glViewport(0, 0, nWidth, nHeight);
@@ -548,12 +547,12 @@ bool Button(int x, int y, int w, int h, std::string Text, bool repeat=false) {
 
   if (IsInside) {
     if (Action) {
-      SetColor(ColorButtonBorderPress);
+      SetColor(ColorButtonPress);
     } else {
-      SetColor(ColorButtonBorderHover);
+      SetColor(ColorButtonHover);
     }
   } else {
-    SetColor(ColorButtonBorder);
+    SetColor(ColorButton);
   }
   DrawQuad(x, y, w, h);
 
@@ -578,11 +577,11 @@ bool ButtonCheck(int x, int y, int w, int h, std::string Text, bool Status) {
   
   if (IsInside) {
     if (mousebtn_press_left) {
-      SetColor(ColorButtonBorderPress);
+      SetColor(ColorButtonPress);
     }
     else {
       if (Status) {
-        SetColor(ColorButtonBorderHover);
+        SetColor(ColorButtonHover);
       }
       else {
         SetColor(ColorButtonUncheckHover);
@@ -591,7 +590,7 @@ bool ButtonCheck(int x, int y, int w, int h, std::string Text, bool Status) {
   }
   else {
     if (Status) {
-      SetColor(ColorButtonBorder);
+      SetColor(ColorButton);
     }
     else {
       SetColor(ColorButtonUncheck);
@@ -624,14 +623,14 @@ bool ButtonIcon(int x, int y, int icon_x, int icon_y, bool repeat = false) {
   
   if (IsInside) {
     if (Action) {
-      SetColor(ColorButtonBorderPress);
+      SetColor(ColorButtonPress);
     }
     else {
-      SetColor(ColorButtonBorderHover);
+      SetColor(ColorButtonHover);
     }
   }
   else {
-    SetColor(ColorButtonBorder);
+    SetColor(ColorButton);
   }
   
   DrawIcon(x - 2, y - 2, icon_x, icon_y);
@@ -651,11 +650,11 @@ bool ButtonCheckIcon(int x, int y, int icon_x, int icon_y, bool Status) {
   
   if (IsInside) {
     if (mousebtn_press_left) {
-      SetColor(ColorButtonBorderPress);
+      SetColor(ColorButtonPress);
     }
     else {
       if (Status) {
-        SetColor(ColorButtonBorderHover);
+        SetColor(ColorButtonHover);
       }
       else {
         SetColor(ColorButtonUncheckHover);
@@ -664,7 +663,7 @@ bool ButtonCheckIcon(int x, int y, int icon_x, int icon_y, bool Status) {
   }
   else {
     if (Status) {
-      SetColor(ColorButtonBorder);
+      SetColor(ColorButton);
     }
     else {
       SetColor(ColorButtonUncheck);
@@ -690,7 +689,7 @@ void InputText(int x, int y, int w, int h, const char* InText) {
     Text = "-" + Text.substr(Text.length() - MaxDisplayCharacter, MaxDisplayCharacter);
   }
 
-  SetColor(ColorButtonBorderHover);
+  SetColor(ColorButtonHover);
   DrawQuad(x, y, w, h);
   SetColor(ColorButton);
   DrawQuad(x + 5, y + 5, w - 10, h - 10);
@@ -698,7 +697,7 @@ void InputText(int x, int y, int w, int h, const char* InText) {
   SetColor(ColorText);
   float TextEndPos = DrawLabel(x + 10, y + FontSize / 4 + h / 2, Text);
   // carret
-  SetColor(((int)(TimeSinceStart*2))%2 == 0 ? ColorButtonBorder : ColorButtonBorderHover);
+  SetColor(((int)(TimeSinceStart*2))%2 == 0 ? ColorButton : ColorButtonHover);
   DrawQuad(TextEndPos + 2, y - FontSize / 2 + h / 2, 4, FontSize);
 }
 
@@ -917,7 +916,7 @@ void UpdateControlWindow(float ElapsedTime) {
       
       BlockVerticalSeparator();
 
-      SetColor(ColorButtonBorderHover);
+      SetColor(ColorButtonHover);
       DrawLabelRight(BlockMarginLeft, BlockPositionY + FontSize / 4 + 12, tostr(i+1));
 
       int CoderRightSide = BlockCurrentRight;

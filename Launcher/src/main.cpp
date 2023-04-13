@@ -108,16 +108,14 @@ int main(int argc, const char *argv[])
   printf("[LAUNCHER] Started \n");
 
   LoadConfigFile();
-
-  FindDesktopResolution();
-
+  
+  InitControlWindow(options);
+  
   //Network::PrepareConnection();
   //Network::OpenConnection("ws://127.0.0.1:8000/");
 
   LaunchInstances(options);
-
-  InitControlWindow(options);
-
+  
   double Time = WhatTime();
   while (!WantsToQuit()) {
     double NewTime = WhatTime();
