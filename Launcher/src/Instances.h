@@ -15,6 +15,7 @@ public:
   std::string CoderName;
   bool IsFullScreen = false;
   bool IsHidden = false;
+  bool FirstDisplay = true;
 
   Instance();
   bool Init(std::string CoderName);
@@ -30,12 +31,8 @@ void FindDesktopResolution();
 
 std::vector<class Instance*>& GetInstances();
 
-enum class DisplayAction {
-  FirstDisplay,
-  ShowMosaic,
-  SetFullscreen
-};
-void ChangeDisplay(DisplayAction Action, Instance* Target=nullptr);
+void RefreshDisplay();
+void ShowMosaic();
 void ToggleHidden(Instance* Target);
 
 void FullscreenPrev();

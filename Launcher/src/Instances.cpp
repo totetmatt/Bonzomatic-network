@@ -29,7 +29,7 @@ float FullScreenPercentageY = 0.8f;
 bool GlobalIsFullscreen = false;
 int LastFullScreenIndex = -1;
 
-int DelayInitWindows = 2000;
+int DelayInitWindows = 500;
 std::string ConfigCommandLine = "skipdialog networkMode=grabber";
 
 std::string ExecutableName = "Bonzomatic.exe";
@@ -50,9 +50,35 @@ bool WantTextEditor = true;
 bool IsDiapoLaunched() { return DiapoLaunched; }
 int GetCurrentDiapo() { return DiapoCurrentIndex; }
 
+void FullscreenInstance(Instance* Target) {
+  GlobalIsFullscreen = true;
+  for (int i = 0; i < Instances.size(); ++i) {
+    auto const& Cur = Instances[i];
+
+    bool IsTarget = Target && Cur == Target;
+    if (IsTarget) {
+      Cur->IsFullScreen = true;
+      LastFullScreenIndex = i;
+    }
+    else {
+      Cur->IsFullScreen = false;
+    }
+  }
+  RefreshDisplay();
+}
+
+void ShowMosaic() {
+  GlobalIsFullscreen = false;
+  for (int i = 0; i < Instances.size(); ++i) {
+    auto const& Cur = Instances[i];
+    Cur->IsFullScreen = false;
+  }
+  RefreshDisplay();
+}
+
 void FullscreenIndex(int index) {
   if (index<0 || index >= Instances.size()) return;
-  ChangeDisplay(DisplayAction::SetFullscreen, Instances[index]);
+  FullscreenInstance(Instances[index]);
 }
 
 void FullscreenPrev() {
@@ -71,27 +97,23 @@ void FullscreenNext() {
   FullscreenIndex(NewIndex);
 }
 
-void ToggleFullscreen(int index) {
-  if (index >= Instances.size()) return;
-  Instance* Cur = Instances[index];
-  if (Cur->IsFullScreen) {
-    ChangeDisplay(DisplayAction::ShowMosaic, Cur);
-  }
-  else {
-    ChangeDisplay(DisplayAction::SetFullscreen, Cur);
-  }
-}
-
 bool CoderToggleMosaic = false;
 void ToggleFullscreen(Instance* Cur) {
   if (Cur->IsFullScreen) {
     if (CoderToggleMosaic) {
-      ChangeDisplay(DisplayAction::ShowMosaic, Cur);
+      ShowMosaic();
     }
   }
   else {
-    ChangeDisplay(DisplayAction::SetFullscreen, Cur);
+    StopDiaporama();
+    FullscreenInstance(Cur);
   }
+}
+
+void ToggleFullscreen(int index) {
+  if (index >= Instances.size()) return;
+  StopDiaporama();
+  ToggleFullscreen(Instances[index]);
 }
 
 void RandomFullscreen() {
@@ -161,7 +183,6 @@ void StartDiaporama() {
 
 void StopDiaporama() {
   DiapoLaunched = false;
-  ChangeDisplay(DisplayAction::ShowMosaic);
 }
 
 void UpdateDiaporama(float ElapsedTime) {
@@ -179,7 +200,7 @@ void UpdateDiaporama(float ElapsedTime) {
           DiapoCurrentLoop += 1;
           if (DiapoCurrentLoop >= DiapoLoops && !DiapoInfiniteLoop) {
             // end of diaporama
-            DiapoLaunched = false;
+            StopDiaporama();
             // staap
           }
         }
@@ -191,7 +212,7 @@ void UpdateDiaporama(float ElapsedTime) {
         FullscreenIndex(DiapoCurrentIndex);
       }
       else {
-        ChangeDisplay(DisplayAction::ShowMosaic);
+        ShowMosaic();
       }
     }
   }
@@ -218,7 +239,6 @@ bool Instance::Init(std::string InCoderName)
   char* CommandString = new char[CommandLine.size() + 1];
   strncpy_s(CommandString, (CommandLine.size() + 1), CommandLine.c_str(), (CommandLine.size() + 1));
 
-
   DWORD dwExitCode = 0;
   if (CreateProcessA(ExecutableName.c_str(),
     CommandString, 0, 0, false,
@@ -233,6 +253,12 @@ bool Instance::Init(std::string InCoderName)
     //printf("[LAUNCHER] Process initialized.\n");
 
     EnumWindows(EnumWindowsProc, (LPARAM)(this));
+
+    LONG WindowStyle = GetWindowLong(hwnd, GWL_STYLE);
+    WindowStyle &= ~WS_CAPTION;
+    WindowStyle &= ~WS_MAXIMIZEBOX;
+    WindowStyle &= ~WS_THICKFRAME;
+    SetWindowLong(hwnd, GWL_STYLE, WindowStyle);
   }
   else
   {
@@ -257,8 +283,7 @@ void Instance::Restart()
 {
   Release();
   Init(CoderName);
-
-  ChangeDisplay(DisplayAction::FirstDisplay);
+  RefreshDisplay();
 }
 
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
@@ -289,7 +314,7 @@ void ToggleHidden(Instance* Target) {
   Target->IsHidden = !Target->IsHidden;
   //ShowWindow(Target->hwnd, Target->IsHidden ? SW_HIDE : SW_SHOW);
   if (!GlobalIsFullscreen) {
-    ChangeDisplay(DisplayAction::ShowMosaic);
+    ShowMosaic();
   }
 }
 
@@ -322,7 +347,7 @@ void SetMinimalPosition(Instance* Cur) {
   ShowWindow(Cur->hwnd, SW_HIDE);
 }
 
-void ChangeDisplay(DisplayAction Action, Instance* Target) {
+void RefreshDisplay() {
 
   int TableWidth = ScreenWidth * ScreenPercentageX;
   int TableHeight = ScreenHeight * ScreenPercentageY;
@@ -335,64 +360,42 @@ void ChangeDisplay(DisplayAction Action, Instance* Target) {
       ++NumberOfInstances;
     }
   }
-  //int NumberOfInstances = Instances.size();
-  int NumColumn = NumberOfInstances<1 ? 1 : ceil(sqrt(NumberOfInstances));
+  
+  int NumColumn = NumberOfInstances < 1 ? 1 : ceil(sqrt(NumberOfInstances));
   int NumRow = NumberOfInstances < 1 ? 1 : ceil(float(NumberOfInstances) / NumColumn);
   int ColumnSize = TableWidth / NumColumn;
   int RowSize = TableHeight / NumRow;
 
-  if (Action == DisplayAction::SetFullscreen) {
-    GlobalIsFullscreen = true;
-  }
-  if (Action == DisplayAction::FirstDisplay || Action == DisplayAction::ShowMosaic) {
-    GlobalIsFullscreen = false;
-  }
-    
+  bool IsFullScreen = GlobalIsFullscreen;
+
   int CurIndex = 0;
-  for(int i=0; i<Instances.size(); ++i) {
+  for (int i = 0; i < Instances.size(); ++i) {
     auto const& Cur = Instances[i];
 
     int PosX = (CurIndex % NumColumn) * ColumnSize + PixelScreenOffsetX;
     int PosY = floor(CurIndex / NumColumn) * RowSize + PixelScreenOffsetY;
 
-    if (Action == DisplayAction::FirstDisplay || Action == DisplayAction::ShowMosaic) {  
-      if (Cur->IsHidden) {
-        SetMinimalPosition(Cur);
-      } else {
-        SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize - ScreenBlankSpaceX, RowSize - ScreenBlankSpaceY, GridForceRatio, GridWantedRatio);
-      }
-      Cur->IsFullScreen = false;
-    }
-
-    bool IsTarget = Target && Cur == Target;
-    if (IsTarget) {
-      DiapoCurrentIndex = i;
-    }
-
-    if (Action == DisplayAction::SetFullscreen) {
-      if (IsTarget) {
+    if (IsFullScreen) {
+      if (Cur->IsFullScreen) {
         int FullWidth = ScreenWidth * FullScreenPercentageX;
         int FullHeight = ScreenHeight * FullScreenPercentageY;
         int PixelFullScreenOffsetX = ScreenWidth * FullScreenOffsetX;
         int PixelFullScreenOffsetY = ScreenHeight * FullScreenOffsetY;
 
         SetInstancePositionRatio(Cur, PixelFullScreenOffsetX, PixelFullScreenOffsetY, FullWidth, FullHeight, FullForceRatio, FullWantedRatio);
-        Cur->IsFullScreen = true;
-        LastFullScreenIndex = i;
-      } else {
-        Cur->IsFullScreen = false;
+      }
+      else {
         SetMinimalPosition(Cur);
+      }
+    } else {
+      if (Cur->IsHidden) {
+        SetMinimalPosition(Cur);
+      }
+      else {
+        SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize - ScreenBlankSpaceX, RowSize - ScreenBlankSpaceY, GridForceRatio, GridWantedRatio);
       }
     }
     
-    if (Action == DisplayAction::FirstDisplay) {
-      LONG WindowStyle = GetWindowLong(Cur->hwnd, GWL_STYLE);
-      WindowStyle &= ~WS_CAPTION;
-      WindowStyle &= ~WS_MAXIMIZEBOX;
-      WindowStyle &= ~WS_THICKFRAME;
-      SetWindowLong(Cur->hwnd, GWL_STYLE, WindowStyle);
-    }
-
     if (MosaicFixed || !Cur->IsHidden) {
       ++CurIndex;
     }
@@ -488,7 +491,7 @@ bool LaunchInstances(jsonxx::Object options)
     }
   }
 
-  ChangeDisplay(DisplayAction::FirstDisplay);
+  RefreshDisplay();
 
   return true;
 }

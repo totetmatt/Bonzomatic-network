@@ -56,11 +56,13 @@ void window_size_callback(GLFWwindow* window, int width, int height)
 
 void PressMosaic() {
   StopDiaporama();
+  ShowMosaic();
 }
 
 void ToggleDiaporama() {
   if (IsDiapoLaunched()) {
     StopDiaporama();
+    ShowMosaic();
   }
   else {
     StartDiaporama();
@@ -76,7 +78,8 @@ void ValidNewCoder() {
   if (sNewCoderName.size() > 0) {
     printf("[LAUNCHER] Add coder %s \n", sNewCoderName.c_str());
     AddInstance(sNewCoderName);
-    ChangeDisplay(DisplayAction::FirstDisplay);
+    FocusControlWindow();
+    RefreshDisplay();
   }
   bModeNewCoder = false;
 }
@@ -863,8 +866,14 @@ void UpdateControlWindow(float ElapsedTime) {
       if (bModeOptions) {
         if (ButtonIcon(3, 1)) { // delete coder
           if (Cur) {
+            // If we delete the fullscreen instance, go back to the mosaic
+            bool SwitchMosaic = Cur->IsFullScreen;
             RemoveInstance(Cur);
-            ChangeDisplay(DisplayAction::FirstDisplay);
+            if (SwitchMosaic) {
+              PressMosaic();
+            } else {
+              RefreshDisplay();
+            }
             break; // exit the loop so we don't mess up and delete several things
           }
         }
@@ -899,8 +908,7 @@ void UpdateControlWindow(float ElapsedTime) {
           BlockVerticalSeparator(25);
         }
         if (UpdateDisplay) {
-          extern bool GlobalIsFullscreen;
-          if (!GlobalIsFullscreen) ChangeDisplay(DisplayAction::ShowMosaic);
+          RefreshDisplay();
         }
       }
       if (ButtonCheckIcon(0, 2, !Cur->IsHidden)) { // show/hidden coder
@@ -910,7 +918,7 @@ void UpdateControlWindow(float ElapsedTime) {
       BlockVerticalSeparator();
 
       SetColor(ColorButtonBorderHover);
-      DrawLabelRight(BlockMarginLeft, BlockPositionY + FontSize / 4 + 12, tostr(i));
+      DrawLabelRight(BlockMarginLeft, BlockPositionY + FontSize / 4 + 12, tostr(i+1));
 
       int CoderRightSide = BlockCurrentRight;
 
