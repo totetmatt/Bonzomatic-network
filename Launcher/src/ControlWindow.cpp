@@ -265,7 +265,7 @@ void InitIcons()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
-float DrawText(float x, float y, const char *text)
+float DrawLabel(float x, float y, std::string text)
 {
   // assume orthographic projection with units = screen pixels, origin at top left
   glEnable(GL_TEXTURE_2D);
@@ -273,16 +273,13 @@ float DrawText(float x, float y, const char *text)
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glBegin(GL_QUADS);
-  while (*text) {
-    if (*text < 512) {
-      stbtt_aligned_quad q;
-      stbtt_GetBakedQuad(cdata, 512, 512, *text, &x, &y, &q, 1);//1=opengl & d3d10+,0=d3d9
-      glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y0);
-      glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y0);
-      glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y1);
-      glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
-    }
-    ++text;
+  for(int i=0; i < text.length(); ++i) {
+    stbtt_aligned_quad q;
+    stbtt_GetBakedQuad(cdata, 512, 512, text[i], &x, &y, &q, 1);//1=opengl & d3d10+,0=d3d9
+    glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y0);
+    glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y0);
+    glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y1);
+    glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
   }
   glEnd();
   return x;
@@ -460,7 +457,87 @@ bool CheckInside(int x, int y, int w, int h) {
       && mousepos_y > y && mousepos_y < (y + h);
 }
 
-bool Button(int x, int y, int w, int h, const char* Text, bool repeat=false) {
+bool BlockAlignIsLeft = true;
+int BlockMarginLeft = 20;
+int BlockMarginRight = 10;
+int BlockCurrentLeft = 0;
+int BlockCurrentRight = 0;
+int BlockHeight = 40;
+int BlockButtonHeight = 30;
+int BlockPositionY = 10;
+int BlockIconOffset = 2;
+
+void BlockInit(int x, int y, int w, int h) {
+  BlockMarginLeft = x;
+  BlockMarginRight = nWidth - BlockMarginLeft - w;
+  BlockPositionY = y;
+  BlockHeight = h;
+  BlockButtonHeight = h - 10;
+  BlockCurrentLeft = BlockMarginLeft;
+  BlockCurrentRight = nWidth - BlockMarginRight;
+}
+
+void BlockNextLine() {
+  BlockPositionY += BlockHeight;
+  BlockCurrentLeft = BlockMarginLeft;
+  BlockCurrentRight = nWidth - BlockMarginRight;
+}
+
+void BlockNextLine(int NewHeight) {
+  BlockHeight = NewHeight;
+  BlockNextLine();
+}
+
+void BlockAlignLeft() { BlockAlignIsLeft = true; }
+void BlockAlignRight() { BlockAlignIsLeft = false; }
+
+int BlockPush(int w) {
+  if (BlockAlignIsLeft) {
+    int BlockStart = BlockCurrentLeft;
+    BlockCurrentLeft += w;
+    return BlockStart;
+  } else {
+    BlockCurrentRight -= w;
+    return BlockCurrentRight;
+  }
+}
+
+void BlockVerticalSeparator(int w) {
+  BlockPush(w);
+}
+
+void BlockVerticalSeparator() {
+  BlockVerticalSeparator(4);
+}
+
+float DrawLabel(std::string Text)
+{
+  int w = BlockCurrentRight - BlockCurrentLeft;
+  return DrawLabel(BlockPush(w), BlockPositionY, Text);
+}
+
+float DrawLabel(int w, std::string Text)
+{
+  return DrawLabel(BlockPush(w), BlockPositionY, Text);
+}
+
+float DrawLabelRight(float x, float y, std::string Text)
+{
+  return DrawLabel(x - (Text.length() + 1)* FontSize / 2, y, Text);
+}
+
+float DrawLabelRight(std::string Text)
+{
+  int w = BlockCurrentRight - BlockCurrentLeft;
+  return DrawLabelRight(BlockPush(w), BlockPositionY, Text);
+}
+
+float DrawLabelRight(int w, std::string Text)
+{
+  return DrawLabelRight(BlockPush(w), BlockPositionY, Text);
+}
+
+bool Button(int x, int y, int w, int h, std::string Text, bool repeat=false) {
 
   bool IsInside = CheckInside(x, y, w, h);
 
@@ -478,12 +555,21 @@ bool Button(int x, int y, int w, int h, const char* Text, bool repeat=false) {
   DrawQuad(x, y, w, h);
 
   SetColor(ColorText);
-  DrawText(x+10, y + FontSize/4 + h/2, Text);
+  DrawLabel(x+10, y + FontSize/4 + h/2, Text);
 
   return Action && IsInside;
 }
 
-bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
+bool Button(std::string Text, bool repeat = false) {
+  int w = BlockCurrentRight - BlockCurrentLeft;
+  return Button(BlockPush(w), BlockPositionY, w, BlockButtonHeight, Text, repeat);
+}
+
+bool Button(int w, std::string Text, bool repeat = false) {
+  return Button(BlockPush(w), BlockPositionY, w, BlockButtonHeight, Text, repeat);
+}
+
+bool ButtonCheck(int x, int y, int w, int h, std::string Text, bool Status) {
 
   bool IsInside = CheckInside(x, y, w, h);
   
@@ -512,9 +598,18 @@ bool ButtonCheck(int x, int y, int w, int h, const char* Text, bool Status) {
   DrawQuad(x, y, w, h);
 
   SetColor(ColorText);
-  DrawText(x + 10, y + FontSize / 4 + h / 2, Text);
+  DrawLabel(x + 10, y + FontSize / 4 + h / 2, Text);
 
   return mousebtn_press_left && IsInside;
+}
+
+bool ButtonCheck(std::string Text, bool Status) {
+  int w = BlockCurrentRight - BlockCurrentLeft;
+  return ButtonCheck(BlockPush(w), BlockPositionY, w, BlockButtonHeight, Text, Status);
+}
+
+bool ButtonCheck(int w, std::string Text, bool Status) {
+  return ButtonCheck(BlockPush(w), BlockPositionY, w, BlockButtonHeight, Text, Status);
 }
 
 bool ButtonIcon(int x, int y, int icon_x, int icon_y, bool repeat = false) {
@@ -539,6 +634,11 @@ bool ButtonIcon(int x, int y, int icon_x, int icon_y, bool repeat = false) {
   DrawIcon(x - 2, y - 2, icon_x, icon_y);
 
   return Action && IsInside;
+}
+
+bool ButtonIcon(int icon_x, int icon_y, bool repeat = false) {
+  int w = 22;
+  return ButtonIcon(BlockPush(w + 3), BlockPositionY + BlockIconOffset, icon_x, icon_y, repeat);
 }
 
 bool ButtonCheckIcon(int x, int y, int icon_x, int icon_y, bool Status) {
@@ -573,6 +673,11 @@ bool ButtonCheckIcon(int x, int y, int icon_x, int icon_y, bool Status) {
   return mousebtn_press_left && IsInside;
 }
 
+bool ButtonCheckIcon(int icon_x, int icon_y, bool Status) {
+  int w = 22;
+  return ButtonCheckIcon(BlockPush(w + 3), BlockPositionY + BlockIconOffset, icon_x, icon_y, Status);
+}
+
 float TimeSinceStart = 0.0;
 void InputText(int x, int y, int w, int h, const char* InText) {
 
@@ -588,10 +693,20 @@ void InputText(int x, int y, int w, int h, const char* InText) {
   DrawQuad(x + 5, y + 5, w - 10, h - 10);
 
   SetColor(ColorText);
-  float TextEndPos = DrawText(x + 10, y + FontSize / 4 + h / 2, Text.c_str());
+  float TextEndPos = DrawLabel(x + 10, y + FontSize / 4 + h / 2, Text);
   // carret
   SetColor(((int)(TimeSinceStart*2))%2 == 0 ? ColorButtonBorder : ColorButtonBorderHover);
   DrawQuad(TextEndPos + 2, y - FontSize / 2 + h / 2, 4, FontSize);
+}
+
+void InputText(const char* InText) {
+  int w = BlockCurrentRight - BlockCurrentLeft;
+  int h = BlockHeight - 10;
+  InputText(BlockPush(w), BlockPositionY, w, h, InText);
+}
+
+void InputText(int w, int h, const char* InText) {
+  InputText(BlockPush(w), BlockPositionY, w, h, InText);
 }
 
 template <typename T> std::string tostr(const T& t) {
@@ -627,9 +742,13 @@ void UpdateControlWindow(float ElapsedTime) {
     
   int StartY = -ScroolPositionY;
   int PosY = StartY + 10;
-  int LeftMargin = 20;
-  int RightMargin = 10;
+  int LeftMargin = 12;
+  int RightMargin = 12;
   int MenuWidth = nWidth - LeftMargin - RightMargin;
+
+  BlockInit(LeftMargin, PosY, MenuWidth, 40);
+  BlockAlignLeft();
+  BlockIconOffset = 2;
   
   if (bModeNewCoder) {
 
@@ -637,13 +756,16 @@ void UpdateControlWindow(float ElapsedTime) {
     // New coder dialog
     ///////////////
 
-    InputText(LeftMargin, PosY, MenuWidth, 35, sNewCoderName.c_str());
+    BlockAlignLeft();
+
+    InputText(sNewCoderName.c_str());
     
-    PosY += 40;
-    if (Button(LeftMargin, PosY, nWidth * 0.5 - RightMargin, 35, "Cancel")) {
+    BlockNextLine();
+    if (Button(MenuWidth * 0.5, "Cancel")) {
       bModeNewCoder = false;
     }
-    if (Button(LeftMargin + nWidth * 0.5 - 15, PosY, nWidth * 0.5 - RightMargin, 35, "Add Coder")) {
+    BlockVerticalSeparator();
+    if (Button("Add Coder")) {
       ValidNewCoder();
     }
   } else {
@@ -652,17 +774,19 @@ void UpdateControlWindow(float ElapsedTime) {
     // Buttons: add coder, save, options
     ///////////////
 
-    if (Button(LeftMargin, PosY, MenuWidth * 0.4, 35, "Add Coder")) {
+    if (Button(MenuWidth * 0.4, "Add Coder")) {
       EnterNewCoderMode();
     }
-    if (Button(LeftMargin + MenuWidth * 0.4 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Save")) {
+    BlockVerticalSeparator();
+    if (Button(MenuWidth * 0.3 - 4, "Save")) {
       extern void SaveConfigFile();
       SaveConfigFile();
     }
-    if (ButtonCheck(LeftMargin + MenuWidth * 0.7 + 4, PosY, MenuWidth * 0.3 - 4, 35, "Options", !bModeOptions)) {
+    BlockVerticalSeparator();
+    if (ButtonCheck("Options", !bModeOptions)) {
       bModeOptions = !bModeOptions;
     }
-    PosY += 40;
+    BlockNextLine();
 
     ///////////////
     // Diaporama buttons
@@ -671,19 +795,22 @@ void UpdateControlWindow(float ElapsedTime) {
     extern float DiapoBPM;
     std::string DelayText = tostr(DiapoBPM);
     std::string DiapoTitle = "Diapo (" + DelayText + " bpm)";
-    int DiapoButtons = 3;
-    if (Button(LeftMargin, PosY, MenuWidth - DiapoButtons * 25, 35, DiapoTitle.c_str())) {
-      ToggleDiaporama();
+
+    BlockAlignRight();
+    extern bool DiapoInfiniteLoop;
+    if (ButtonCheckIcon(2, 0, !DiapoInfiniteLoop)) {
+      DiapoInfiniteLoop = !DiapoInfiniteLoop;
     }
-    if (ButtonIcon(MenuWidth - (DiapoButtons - 1) * 25, PosY + 4, 1, 0, true)) { // minus
-      DiapoBPM = max(1, DiapoBPM - 1);
-    }
-    if (ButtonIcon(MenuWidth - (DiapoButtons - 2) * 25, PosY + 4, 0, 0, true)) { // plus
+    if (ButtonIcon(0, 0, true)) { // plus
       DiapoBPM = DiapoBPM + 1;
     }
-    extern bool DiapoInfiniteLoop;
-    if (ButtonCheckIcon(MenuWidth - (DiapoButtons - 3) * 25, PosY + 4, 2, 0, !DiapoInfiniteLoop)) {
-      DiapoInfiniteLoop = !DiapoInfiniteLoop;
+    if (ButtonIcon(1, 0, true)) { // minus
+      DiapoBPM = max(1, DiapoBPM - 1);
+    }
+    BlockVerticalSeparator();
+    BlockAlignLeft();
+    if (Button(DiapoTitle.c_str())) {
+      ToggleDiaporama();
     }
     UpdateDiaporama(ElapsedTime);
     if (IsDiapoLaunched()) {
@@ -692,9 +819,9 @@ void UpdateControlWindow(float ElapsedTime) {
     else {
       glColor3d(1, 0, 0);
     }
-    DrawQuad(15, PosY, 5, 35);
-    PosY += 40;
-
+    DrawQuad(BlockMarginLeft-5, BlockPositionY, 5, BlockButtonHeight);
+    BlockNextLine();
+    
     ///////////////
     // Mosaic button
     ///////////////
@@ -709,80 +836,91 @@ void UpdateControlWindow(float ElapsedTime) {
     std::string VisibleCountText = tostr(VisibleInstances);
     std::string InstanceCountText = tostr(Instances.size());
     std::string MosaicTitle = "Mosaic (" + VisibleCountText + "/" + InstanceCountText + ")";
-    if (Button(LeftMargin, PosY, nWidth * 0.7 - LeftMargin  - RightMargin - 2, 35, MosaicTitle.c_str())) {
+    BlockAlignLeft();
+    if (Button(MenuWidth * 0.7, MosaicTitle.c_str())) {
       PressMosaic();
     }
-    if (Button(LeftMargin + nWidth * 0.7 - LeftMargin - RightMargin + 2, PosY, nWidth * 0.3, 35, "Random")) {
+    BlockVerticalSeparator();
+    if (Button("Random")) {
       RandomFullscreen();
     }
 
-    PosY += 40;
+    BlockNextLine();
     
     ///////////////
     // Coders buttons
     ///////////////
 
+    BlockInit(LeftMargin + 18, BlockPositionY, nWidth - LeftMargin - 10 - RightMargin, 25);
+    BlockButtonHeight = 25;
+    BlockIconOffset = -2;
+
     for (int i = 0; i < Instances.size(); ++i) {
       Instance* Cur = Instances[i];
-      int ButtonCount = bModeOptions ? 5 : 1;
-      int NameRightSize = RightMargin + 15 + ButtonCount * 25;
-      int PosX = LeftMargin + 10;
-      int PosYButton = PosY - 1;
+     
+      BlockAlignRight();
       
-      std::string CoderNumber = tostr(i);
-      SetColor(ColorButtonBorderHover);
-      DrawText(PosX - 8 - 8 * CoderNumber.length(), PosY + FontSize / 4 + 12, CoderNumber.c_str());
-
-      if (Button(PosX, PosY, nWidth - NameRightSize - 10, 25, Cur->CoderName.c_str())) {
-        ToggleFullscreen(Cur);
-      }
-      PosX += nWidth - NameRightSize - 8;
-      if (ButtonCheckIcon(PosX, PosYButton, 0, 2, !Cur->IsHidden)) { // show/hidden coder
-        ToggleHidden(Cur);
-      }
-      PosX += 25;
       if (bModeOptions) {
-        bool UpdateDisplay = false;
-        if (i > 0 && ButtonIcon(PosX, PosYButton, 1, 1)) { // move up coder
-          int other = i - 1;
-          if (other >= 0) {
-            Instance* tmp = Instances[other];
-            Instances[other] = Instances[i];
-            Instances[i] = tmp;
-            UpdateDisplay = true;
-          }
-        }
-        PosX += 25;
-        if (i < Instances.size()-1 && ButtonIcon(PosX, PosYButton, 2, 1)) { // move down coder
-          int other = i + 1;
-          if (other < Instances.size()) {
-            Instance* tmp = Instances[other];
-            Instances[other] = Instances[i];
-            Instances[i] = tmp;
-            UpdateDisplay = true;
-          }
-        }
-        PosX += 25;
-        if (UpdateDisplay) {
-          extern bool GlobalIsFullscreen;
-          if(!GlobalIsFullscreen) ChangeDisplay(DisplayAction::ShowMosaic);
-        }
-        if (ButtonIcon(PosX, PosYButton, 0, 1)) { // restart coder
-          if (Cur) Cur->Restart();
-        }
-        PosX += 25;
-        if (ButtonIcon(PosX, PosYButton, 3, 1)) { // delete coder
+        if (ButtonIcon(3, 1)) { // delete coder
           if (Cur) {
             RemoveInstance(Cur);
             ChangeDisplay(DisplayAction::FirstDisplay);
             break; // exit the loop so we don't mess up and delete several things
           }
         }
+        if (ButtonIcon(0, 1)) { // restart coder
+          if (Cur) Cur->Restart();
+        }
+        bool UpdateDisplay = false;
+        if (i < Instances.size() - 1) {
+          if (ButtonIcon(2, 1)) { // move down coder
+            int other = i + 1;
+            if (other < Instances.size()) {
+              Instance* tmp = Instances[other];
+              Instances[other] = Instances[i];
+              Instances[i] = tmp;
+              UpdateDisplay = true;
+            }
+          }
+        } else {
+          BlockVerticalSeparator(25);
+        }
+        if (i > 0) {
+          if (ButtonIcon(1, 1)) { // move up coder
+            int other = i - 1;
+            if (other >= 0) {
+              Instance* tmp = Instances[other];
+              Instances[other] = Instances[i];
+              Instances[i] = tmp;
+              UpdateDisplay = true;
+            }
+          }
+        } else {
+          BlockVerticalSeparator(25);
+        }
+        if (UpdateDisplay) {
+          extern bool GlobalIsFullscreen;
+          if (!GlobalIsFullscreen) ChangeDisplay(DisplayAction::ShowMosaic);
+        }
+      }
+      if (ButtonCheckIcon(0, 2, !Cur->IsHidden)) { // show/hidden coder
+        ToggleHidden(Cur);
       }
       
+      BlockVerticalSeparator();
+
+      SetColor(ColorButtonBorderHover);
+      DrawLabelRight(BlockMarginLeft, BlockPositionY + FontSize / 4 + 12, tostr(i));
+
+      int CoderRightSide = BlockCurrentRight;
+
+      if (Button(Cur->CoderName.c_str())) {
+        ToggleFullscreen(Cur);
+      }
+
       // separator below the coder
       glColor3d(0, 0, 0);
-      DrawQuad(LeftMargin + 10, PosY+23, nWidth - NameRightSize, 2);
+      DrawQuad(BlockMarginLeft, BlockPositionY + 23, CoderRightSide - BlockMarginLeft, 2);
 
       if (Cur->IsFullScreen) {
         glColor3d(0, 1, 0);
@@ -790,11 +928,11 @@ void UpdateControlWindow(float ElapsedTime) {
       else {
         glColor3d(1, 0, 0);
       }
-      DrawQuad(LeftMargin + 5, PosY, 5, 23);
+      DrawQuad(BlockMarginLeft - 5, BlockPositionY, 5, 23);
 
-      PosY += 25;
+      BlockNextLine();
     }
-    PosY += 20;
+    BlockNextLine();
 
     ///////////////
     // Scrollbar
@@ -820,25 +958,9 @@ void UpdateControlWindow(float ElapsedTime) {
 
     if (!mousebtn_left) ScroolStartDrag = false;
 
-    /*
-    PosY += 20;
-    tmptime += ElapsedTime;
-    std::string TimeStr = std::string("Time: ") + tostr(tmptime);
-    glColor3d(1, 1, 1);
-    DrawText(20, PosY, TimeStr.c_str());
-    PosY += 20;
-    extern float DiapoCurrentTime;
-    TimeStr = std::string("Cur: ") + tostr(DiapoCurrentTime);
-    glColor3d(1, 1, 1);
-    DrawText(20, PosY, TimeStr.c_str());
-    */
-
-    // cursor
-    //glColor3d(1, 1, 1);
-    //DrawQuad(mousepos_x, mousepos_y, 20, 20);
   }
 
-  LastUIHeight = PosY - StartY;
+  LastUIHeight = BlockPositionY - StartY;
 
   TimeSinceStart += ElapsedTime;
 
