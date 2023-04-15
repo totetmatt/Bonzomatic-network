@@ -722,6 +722,8 @@ bool ScroolStartDrag = false;
 int ScroolLastMouseY = 0;
 void UpdateControlWindow(float ElapsedTime) {
 
+  UpdateDiaporama(ElapsedTime);
+
   const float ar = (float)nWidth / (float)nHeight;
 
   glViewport(0, 0, nWidth, nHeight);
@@ -816,7 +818,6 @@ void UpdateControlWindow(float ElapsedTime) {
     if (Button(DiapoTitle.c_str())) {
       ToggleDiaporama();
     }
-    UpdateDiaporama(ElapsedTime);
     if (IsDiapoLaunched()) {
       glColor3d(0, 1, 0);
     }
