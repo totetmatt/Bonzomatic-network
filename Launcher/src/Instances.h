@@ -27,6 +27,7 @@ Instance* AddInstance(std::string CoderName);
 void RemoveInstance(Instance* instance);
 bool LaunchInstances(jsonxx::Object options);
 void ReleaseInstances();
+void SortInstances();
 void FindDesktopResolution();
 
 std::vector<class Instance*>& GetInstances();
@@ -46,5 +47,3 @@ void StartDiaporama();
 void StopDiaporama();
 void UpdateDiaporama(float ElapsedTime);
 bool IsDiapoLaunched();
-int GetCurrentDiapo();
-

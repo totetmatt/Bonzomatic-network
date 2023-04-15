@@ -63,8 +63,26 @@ int DiapoCurrentLoop = 0;
 bool DiapoLaunched = false;
 bool WantTextEditor = true;
 
+bool CoderHiddenAtBottom = false;
+
 bool IsDiapoLaunched() { return DiapoLaunched; }
-int GetCurrentDiapo() { return DiapoCurrentIndex; }
+
+bool UseRandomShuffle = false;
+std::vector<int> RandomIndexes;
+void RandomShuffle() {
+  int last = RandomIndexes.size() > 0 ? RandomIndexes.back() : -1;
+  RandomIndexes.clear();
+  for (int i = 0; i < Instances.size(); ++i) {
+    RandomIndexes.push_back(i);
+  }
+  // shuffle
+  for (int i = RandomIndexes.size()-1; i>0; --i) {
+    int a = RandomIndexes[i];
+    int ri = rand() % (i + 1);
+    RandomIndexes[i] = RandomIndexes[ri];
+    RandomIndexes[ri] = a;
+  }
+}
 
 void FullscreenInstance(Instance* Target) {
   GlobalIsFullscreen = true;
@@ -195,6 +213,7 @@ void StartDiaporama() {
   DiapoCurrentIndex = -1;
   DiapoCurrentTime = 0;
   DiapoCurrentLoop = 0;
+  RandomShuffle();
 }
 
 void StopDiaporama() {
@@ -209,23 +228,50 @@ void UpdateDiaporama(float ElapsedTime) {
       // Go to next diapo
       
       bool CurDiapoHidden = false;
+      int HiddenDiapoCounter = 0; // check that to avoid looping if everything is hidden
+      int PrevIndex = DiapoCurrentIndex;
+      if (UseRandomShuffle) {
+        PrevIndex = RandomIndexes[DiapoCurrentIndex % RandomIndexes.size()];
+      }
+      int AvoidIndex = -1;
       do {
         DiapoCurrentIndex += 1;
         if (DiapoCurrentIndex >= Instances.size()) {
           DiapoCurrentIndex = 0;
           DiapoCurrentLoop += 1;
-          if (DiapoCurrentLoop >= DiapoLoops && !DiapoInfiniteLoop) {
+          if (DiapoCurrentLoop >= DiapoLoops && !DiapoInfiniteLoop || HiddenDiapoCounter>= Instances.size()) {
             // end of diaporama
             StopDiaporama();
             // staap
+          } else {
+            HiddenDiapoCounter = 0;
+            AvoidIndex = PrevIndex; // we want to avoid repeating last visible index
+            RandomShuffle();
           }
         }
         // skip hidden diapo
-        CurDiapoHidden = DiapoCurrentIndex < Instances.size() ? Instances[DiapoCurrentIndex]->IsHidden : true;
+        int CurrentIndex = DiapoCurrentIndex;
+        if (UseRandomShuffle) {
+          CurrentIndex = RandomIndexes[DiapoCurrentIndex % RandomIndexes.size()];
+        }
+        CurDiapoHidden = CurrentIndex < Instances.size() ? Instances[CurrentIndex]->IsHidden : true;
+        if (CurDiapoHidden) {
+          HiddenDiapoCounter++;
+        }
+        if (AvoidIndex >= 0 && AvoidIndex == CurrentIndex) {
+          // avoid repeating last index after a loop
+          CurDiapoHidden = true;
+          AvoidIndex = -1; // avoid only once so we can loop if only one visible instance
+          PrevIndex = -1;
+        }
       } while (CurDiapoHidden && DiapoLaunched);
 
       if (DiapoLaunched) {
-        FullscreenIndex(DiapoCurrentIndex);
+        int CurrentIndex = DiapoCurrentIndex;
+        if (UseRandomShuffle) {
+          CurrentIndex = RandomIndexes[DiapoCurrentIndex % RandomIndexes.size()];
+        }
+        FullscreenIndex(CurrentIndex);
       }
       else {
         ShowMosaic();
@@ -450,6 +496,22 @@ void RemoveInstance(Instance* instance) {
   }
 }
 
+void SortInstances() {
+  for (int i = 0; i < Instances.size() - 1; ++i) {
+    Instance* Cur = Instances[i];
+    Instance* Next = Instances[i + 1];
+    if (Cur && Next) {
+      if (CoderHiddenAtBottom) {
+        if (Cur->IsHidden && !Next->IsHidden) {
+          // swap
+          Instances[i] = Next;
+          Instances[i + 1] = Cur;
+        }
+      }
+    }
+  }
+}
+
 void LoadScreenOptions(jsonxx::Object& winjson, ScreenArea* Area) {
   if (winjson.has<jsonxx::Number>("monitor")) Area->Monitor = max(0, int(winjson.get<jsonxx::Number>("monitor")));
   if (winjson.has<jsonxx::Number>("startpercent_x")) Area->PercentStartX = winjson.get<jsonxx::Number>("startpercent_x");
@@ -475,7 +537,6 @@ bool LaunchInstances(jsonxx::Object options)
   {
     jsonxx::Object winjson = options.get<jsonxx::Object>("fullscreen");
     LoadScreenOptions(winjson, &ScreenFull);
-    if (winjson.has<jsonxx::Boolean>("codertogglemosaic")) CoderToggleMosaic = winjson.get<jsonxx::Boolean>("codertogglemosaic");
   }
 
   if (options.has<jsonxx::Object>("secondary"))
@@ -493,6 +554,13 @@ bool LaunchInstances(jsonxx::Object options)
     if (bonzojson.has<jsonxx::Number>("delay_between_spawn")) DelayInitWindows = bonzojson.get<jsonxx::Number>("delay_between_spawn");
     if (bonzojson.has<jsonxx::String>("commandline")) ConfigCommandLine = bonzojson.get<jsonxx::String>("commandline");
     if (bonzojson.has<jsonxx::String>("exename")) ExecutableName = bonzojson.get<jsonxx::String>("exename");
+  }
+
+  if (options.has<jsonxx::Object>("list"))
+  {
+    jsonxx::Object listjson = options.get<jsonxx::Object>("list");
+    if (listjson.has<jsonxx::Boolean>("codertogglemosaic")) CoderToggleMosaic = listjson.get<jsonxx::Boolean>("codertogglemosaic");
+    if (listjson.has<jsonxx::Boolean>("hiddenatbottom")) CoderHiddenAtBottom = listjson.get<jsonxx::Boolean>("hiddenatbottom");
   }
 
   if (options.has<jsonxx::Object>("diaporama"))

@@ -737,9 +737,7 @@ void UpdateControlWindow(float ElapsedTime) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
   // Start drawing UI
-
-  std::vector<class Instance*>& Instances = GetInstances();
-
+  
   ScroolPositionY = max(0, min(ScroolPositionY, LastUIHeight - nHeight));
     
   int StartY = -ScroolPositionY;
@@ -799,6 +797,10 @@ void UpdateControlWindow(float ElapsedTime) {
     std::string DiapoTitle = "Diapo (" + DelayText + " bpm)";
 
     BlockAlignRight();
+    extern bool UseRandomShuffle;
+    if (ButtonCheckIcon(3, 0, !UseRandomShuffle)) {
+      UseRandomShuffle = !UseRandomShuffle;
+    }
     extern bool DiapoInfiniteLoop;
     if (ButtonCheckIcon(2, 0, !DiapoInfiniteLoop)) {
       DiapoInfiniteLoop = !DiapoInfiniteLoop;
@@ -828,6 +830,9 @@ void UpdateControlWindow(float ElapsedTime) {
     // Mosaic button
     ///////////////
 
+    SortInstances();
+    std::vector<class Instance*>& Instances = GetInstances();
+    
     int VisibleInstances = 0;
     for (int i = 0; i < Instances.size(); ++i) {
       Instance* Cur = Instances[i];
