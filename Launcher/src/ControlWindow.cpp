@@ -341,6 +341,7 @@ ThemeColor ColorButtonHover = { 0.6,0.6,0.6,1 };
 ThemeColor ColorButtonPress = { 1,1,1,1 };
 ThemeColor ColorButtonUncheck = { 0.8,0.2,0.2,1 };
 ThemeColor ColorButtonUncheckHover = { 1.0,0.5,0.5,1 };
+ThemeColor ColorScrollbar = { 0.25,0.25,0.25,1 };
 
 ThemeColor ParseColor(const std::string& color) {
   if (color.size() < 6 || color.size() > 8) return { 1,1,1 };
@@ -446,7 +447,9 @@ bool InitControlWindow(jsonxx::Object options) {
     if (theme.has<jsonxx::String>("buttonUncheck"))
       ColorButtonUncheck = ParseColor(theme.get<jsonxx::String>("buttonUncheck"));
     if (theme.has<jsonxx::String>("buttonUncheckHover"))
-      ColorButtonUncheckHover = ParseColor(theme.get<jsonxx::String>("buttonUncheckHover"));    
+      ColorButtonUncheckHover = ParseColor(theme.get<jsonxx::String>("buttonUncheckHover"));
+    if (theme.has<jsonxx::String>("scrollbar"))
+      ColorScrollbar = ParseColor(theme.get<jsonxx::String>("scrollbar"));
   }
 
   glViewport(0, 0, nWidth, nHeight);
@@ -720,9 +723,219 @@ template <typename T> std::string tostr(const T& t) {
 float LastUIHeight = 0.0;
 bool ScroolStartDrag = false;
 int ScroolLastMouseY = 0;
+
+int LeftMargin = 12;
+int RightMargin = 12;
+int MenuWidth = 0;
+
+///////////////
+// New coder dialog
+///////////////
+
+void DialogNewCoder(float ElapsedTime) {
+  
+  BlockAlignLeft();
+
+  InputText(sNewCoderName.c_str());
+
+  BlockNextLine();
+  if (Button(MenuWidth * 0.5, "Cancel")) {
+    bModeNewCoder = false;
+  }
+  BlockVerticalSeparator();
+  if (Button("Add Coder")) {
+    ValidNewCoder();
+  }
+}
+
+void DialogCommon(float ElapsedTime) {
+
+  ///////////////
+  // Buttons: add coder, save, options
+  ///////////////
+
+  if (Button(MenuWidth * 0.4, "Add Coder")) {
+    EnterNewCoderMode();
+  }
+  BlockVerticalSeparator();
+  if (Button(MenuWidth * 0.3 - 4, "Save")) {
+    extern void SaveConfigFile();
+    SaveConfigFile();
+  }
+  BlockVerticalSeparator();
+  if (ButtonCheck("Options", !bModeOptions)) {
+    bModeOptions = !bModeOptions;
+  }
+  BlockNextLine();
+
+  ///////////////
+  // Diaporama buttons
+  ///////////////
+
+  extern float DiapoBPM;
+  std::string DelayText = tostr(DiapoBPM);
+  std::string DiapoTitle = "Diapo (" + DelayText + " bpm)";
+
+  BlockAlignRight();
+  extern bool UseRandomShuffle;
+  if (ButtonCheckIcon(3, 0, !UseRandomShuffle)) {
+    UseRandomShuffle = !UseRandomShuffle;
+  }
+  extern bool DiapoInfiniteLoop;
+  if (ButtonCheckIcon(2, 0, !DiapoInfiniteLoop)) {
+    DiapoInfiniteLoop = !DiapoInfiniteLoop;
+  }
+  if (ButtonIcon(0, 0, true)) { // plus
+    DiapoBPM = DiapoBPM + 1;
+  }
+  if (ButtonIcon(1, 0, true)) { // minus
+    DiapoBPM = max(1, DiapoBPM - 1);
+  }
+  BlockVerticalSeparator();
+  BlockAlignLeft();
+  if (Button(DiapoTitle.c_str())) {
+    ToggleDiaporama();
+  }
+  if (IsDiapoLaunched()) {
+    glColor3d(0, 1, 0);
+  }
+  else {
+    glColor3d(1, 0, 0);
+  }
+  DrawQuad(BlockMarginLeft - 5, BlockPositionY, 5, BlockButtonHeight);
+  BlockNextLine();
+
+  ///////////////
+  // Mosaic button
+  ///////////////
+
+  std::vector<class Instance*>& Instances = GetInstances();
+
+  int VisibleInstances = 0;
+  for (int i = 0; i < Instances.size(); ++i) {
+    Instance* Cur = Instances[i];
+    if (Cur) {
+      if (!Cur->IsHidden) ++VisibleInstances;
+    }
+  }
+  std::string VisibleCountText = tostr(VisibleInstances);
+  std::string InstanceCountText = tostr(Instances.size());
+  std::string MosaicTitle = "Mosaic (" + VisibleCountText + "/" + InstanceCountText + ")";
+  BlockAlignLeft();
+  if (Button(MenuWidth * 0.7, MosaicTitle.c_str())) {
+    PressMosaic();
+  }
+  BlockVerticalSeparator();
+  if (Button("Random")) {
+    RandomFullscreen();
+  }
+
+  BlockNextLine();
+}
+
+void DialogCoderList(float ElapsedTime) {
+
+  ///////////////
+  // Coders buttons
+  ///////////////
+
+  BlockInit(LeftMargin + 18, BlockPositionY, nWidth - LeftMargin - 10 - RightMargin, 25);
+  BlockButtonHeight = 25;
+  BlockIconOffset = -2;
+
+  std::vector<class Instance*>& Instances = GetInstances();
+  for (int i = 0; i < Instances.size(); ++i) {
+    Instance* Cur = Instances[i];
+
+    BlockAlignRight();
+
+    if (bModeOptions) {
+      if (ButtonIcon(3, 1)) { // delete coder
+        if (Cur) {
+          // If we delete the fullscreen instance, go back to the mosaic
+          bool SwitchMosaic = Cur->IsFullScreen;
+          RemoveInstance(Cur);
+          if (SwitchMosaic) {
+            PressMosaic();
+          }
+          else {
+            RefreshDisplay();
+          }
+          break; // exit the loop so we don't mess up and delete several things
+        }
+      }
+      if (ButtonIcon(0, 1)) { // restart coder
+        if (Cur) Cur->Restart();
+      }
+      bool UpdateDisplay = false;
+      if (i < Instances.size() - 1) {
+        if (ButtonIcon(2, 1)) { // move down coder
+          int other = i + 1;
+          if (other < Instances.size()) {
+            Instance* tmp = Instances[other];
+            Instances[other] = Instances[i];
+            Instances[i] = tmp;
+            UpdateDisplay = true;
+          }
+        }
+      }
+      else {
+        BlockVerticalSeparator(25);
+      }
+      if (i > 0) {
+        if (ButtonIcon(1, 1)) { // move up coder
+          int other = i - 1;
+          if (other >= 0) {
+            Instance* tmp = Instances[other];
+            Instances[other] = Instances[i];
+            Instances[i] = tmp;
+            UpdateDisplay = true;
+          }
+        }
+      }
+      else {
+        BlockVerticalSeparator(25);
+      }
+      if (UpdateDisplay) {
+        RefreshDisplay();
+      }
+    }
+    if (ButtonCheckIcon(0, 2, !Cur->IsHidden)) { // show/hidden coder
+      ToggleHidden(Cur);
+    }
+
+    BlockVerticalSeparator();
+
+    SetColor(ColorButtonHover);
+    DrawLabelRight(BlockMarginLeft, BlockPositionY + FontSize / 4 + 12, tostr(i + 1));
+
+    int CoderRightSide = BlockCurrentRight;
+
+    if (Button(Cur->CoderName.c_str())) {
+      ToggleFullscreen(Cur);
+    }
+
+    // separator below the coder
+    glColor3d(0, 0, 0);
+    DrawQuad(BlockMarginLeft, BlockPositionY + 23, CoderRightSide - BlockMarginLeft, 2);
+
+    if (Cur->IsFullScreen) {
+      glColor3d(0, 1, 0);
+    }
+    else {
+      glColor3d(1, 0, 0);
+    }
+    DrawQuad(BlockMarginLeft - 5, BlockPositionY, 5, 23);
+
+    BlockNextLine();
+  }
+  BlockNextLine();
+}
+
 void UpdateControlWindow(float ElapsedTime) {
 
   UpdateDiaporama(ElapsedTime);
+  SortInstances();
 
   const float ar = (float)nWidth / (float)nHeight;
 
@@ -744,215 +957,26 @@ void UpdateControlWindow(float ElapsedTime) {
     
   int StartY = -ScroolPositionY;
   int PosY = StartY + 10;
-  int LeftMargin = 12;
-  int RightMargin = 12;
-  int MenuWidth = nWidth - LeftMargin - RightMargin;
+
+  MenuWidth = nWidth - LeftMargin - RightMargin;
 
   BlockInit(LeftMargin, PosY, MenuWidth, 40);
   BlockAlignLeft();
   BlockIconOffset = 2;
   
   if (bModeNewCoder) {
-
-    ///////////////
-    // New coder dialog
-    ///////////////
-
-    BlockAlignLeft();
-
-    InputText(sNewCoderName.c_str());
-    
-    BlockNextLine();
-    if (Button(MenuWidth * 0.5, "Cancel")) {
-      bModeNewCoder = false;
-    }
-    BlockVerticalSeparator();
-    if (Button("Add Coder")) {
-      ValidNewCoder();
-    }
+    DialogNewCoder(ElapsedTime);
   } else {
-
-    ///////////////
-    // Buttons: add coder, save, options
-    ///////////////
-
-    if (Button(MenuWidth * 0.4, "Add Coder")) {
-      EnterNewCoderMode();
-    }
-    BlockVerticalSeparator();
-    if (Button(MenuWidth * 0.3 - 4, "Save")) {
-      extern void SaveConfigFile();
-      SaveConfigFile();
-    }
-    BlockVerticalSeparator();
-    if (ButtonCheck("Options", !bModeOptions)) {
-      bModeOptions = !bModeOptions;
-    }
-    BlockNextLine();
-
-    ///////////////
-    // Diaporama buttons
-    ///////////////
-
-    extern float DiapoBPM;
-    std::string DelayText = tostr(DiapoBPM);
-    std::string DiapoTitle = "Diapo (" + DelayText + " bpm)";
-
-    BlockAlignRight();
-    extern bool UseRandomShuffle;
-    if (ButtonCheckIcon(3, 0, !UseRandomShuffle)) {
-      UseRandomShuffle = !UseRandomShuffle;
-    }
-    extern bool DiapoInfiniteLoop;
-    if (ButtonCheckIcon(2, 0, !DiapoInfiniteLoop)) {
-      DiapoInfiniteLoop = !DiapoInfiniteLoop;
-    }
-    if (ButtonIcon(0, 0, true)) { // plus
-      DiapoBPM = DiapoBPM + 1;
-    }
-    if (ButtonIcon(1, 0, true)) { // minus
-      DiapoBPM = max(1, DiapoBPM - 1);
-    }
-    BlockVerticalSeparator();
-    BlockAlignLeft();
-    if (Button(DiapoTitle.c_str())) {
-      ToggleDiaporama();
-    }
-    if (IsDiapoLaunched()) {
-      glColor3d(0, 1, 0);
-    }
-    else {
-      glColor3d(1, 0, 0);
-    }
-    DrawQuad(BlockMarginLeft-5, BlockPositionY, 5, BlockButtonHeight);
-    BlockNextLine();
-    
-    ///////////////
-    // Mosaic button
-    ///////////////
-
-    SortInstances();
-    std::vector<class Instance*>& Instances = GetInstances();
-    
-    int VisibleInstances = 0;
-    for (int i = 0; i < Instances.size(); ++i) {
-      Instance* Cur = Instances[i];
-      if (Cur) {
-        if(!Cur->IsHidden) ++VisibleInstances;
-      }
-    }
-    std::string VisibleCountText = tostr(VisibleInstances);
-    std::string InstanceCountText = tostr(Instances.size());
-    std::string MosaicTitle = "Mosaic (" + VisibleCountText + "/" + InstanceCountText + ")";
-    BlockAlignLeft();
-    if (Button(MenuWidth * 0.7, MosaicTitle.c_str())) {
-      PressMosaic();
-    }
-    BlockVerticalSeparator();
-    if (Button("Random")) {
-      RandomFullscreen();
-    }
-
-    BlockNextLine();
-    
-    ///////////////
-    // Coders buttons
-    ///////////////
-
-    BlockInit(LeftMargin + 18, BlockPositionY, nWidth - LeftMargin - 10 - RightMargin, 25);
-    BlockButtonHeight = 25;
-    BlockIconOffset = -2;
-
-    for (int i = 0; i < Instances.size(); ++i) {
-      Instance* Cur = Instances[i];
-     
-      BlockAlignRight();
-      
-      if (bModeOptions) {
-        if (ButtonIcon(3, 1)) { // delete coder
-          if (Cur) {
-            // If we delete the fullscreen instance, go back to the mosaic
-            bool SwitchMosaic = Cur->IsFullScreen;
-            RemoveInstance(Cur);
-            if (SwitchMosaic) {
-              PressMosaic();
-            } else {
-              RefreshDisplay();
-            }
-            break; // exit the loop so we don't mess up and delete several things
-          }
-        }
-        if (ButtonIcon(0, 1)) { // restart coder
-          if (Cur) Cur->Restart();
-        }
-        bool UpdateDisplay = false;
-        if (i < Instances.size() - 1) {
-          if (ButtonIcon(2, 1)) { // move down coder
-            int other = i + 1;
-            if (other < Instances.size()) {
-              Instance* tmp = Instances[other];
-              Instances[other] = Instances[i];
-              Instances[i] = tmp;
-              UpdateDisplay = true;
-            }
-          }
-        } else {
-          BlockVerticalSeparator(25);
-        }
-        if (i > 0) {
-          if (ButtonIcon(1, 1)) { // move up coder
-            int other = i - 1;
-            if (other >= 0) {
-              Instance* tmp = Instances[other];
-              Instances[other] = Instances[i];
-              Instances[i] = tmp;
-              UpdateDisplay = true;
-            }
-          }
-        } else {
-          BlockVerticalSeparator(25);
-        }
-        if (UpdateDisplay) {
-          RefreshDisplay();
-        }
-      }
-      if (ButtonCheckIcon(0, 2, !Cur->IsHidden)) { // show/hidden coder
-        ToggleHidden(Cur);
-      }
-      
-      BlockVerticalSeparator();
-
-      SetColor(ColorButtonHover);
-      DrawLabelRight(BlockMarginLeft, BlockPositionY + FontSize / 4 + 12, tostr(i+1));
-
-      int CoderRightSide = BlockCurrentRight;
-
-      if (Button(Cur->CoderName.c_str())) {
-        ToggleFullscreen(Cur);
-      }
-
-      // separator below the coder
-      glColor3d(0, 0, 0);
-      DrawQuad(BlockMarginLeft, BlockPositionY + 23, CoderRightSide - BlockMarginLeft, 2);
-
-      if (Cur->IsFullScreen) {
-        glColor3d(0, 1, 0);
-      }
-      else {
-        glColor3d(1, 0, 0);
-      }
-      DrawQuad(BlockMarginLeft - 5, BlockPositionY, 5, 23);
-
-      BlockNextLine();
-    }
-    BlockNextLine();
+    DialogCommon(ElapsedTime);
+ 
+    DialogCoderList(ElapsedTime);
 
     ///////////////
     // Scrollbar
     ///////////////
 
     if (LastUIHeight > nHeight) {
-      SetColor(ColorButton);
+      SetColor(ColorScrollbar);
       DrawQuad(nWidth - 10, 0, 10, nHeight);
 
       float ScroolFactor = 1.0f / ((float)(LastUIHeight - nHeight));
@@ -970,7 +994,6 @@ void UpdateControlWindow(float ElapsedTime) {
     }
 
     if (!mousebtn_left) ScroolStartDrag = false;
-
   }
 
   LastUIHeight = BlockPositionY - StartY;

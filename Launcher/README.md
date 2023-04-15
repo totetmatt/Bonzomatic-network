@@ -99,7 +99,8 @@ Example: (all fields are optional)
     "buttonHover": "999999",
     "buttonPress": "FFFFFF",
     "buttonUncheck": "CC3333",
-    "buttonUncheckHover": "FF8080"
+    "buttonUncheckHover": "FF8080",
+    "scrollbar":  "404040"
   }
 } 
 ```
