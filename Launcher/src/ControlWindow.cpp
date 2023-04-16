@@ -38,6 +38,9 @@ std::string sNewCoderName = "";
 bool bModeOptions = false;
 int NewCoderMaxLength = 100;
 
+float TapTempoLastTime = 2.0f;
+int TapTempoCount = 0;
+
 int nWidth = 300;
 int nHeight = 800;
 bool nSizeChanged = false;
@@ -754,17 +757,19 @@ void DialogCommon(float ElapsedTime) {
   // Buttons: add coder, save, options
   ///////////////
 
-  if (Button(MenuWidth * 0.4, "Add Coder")) {
-    EnterNewCoderMode();
+  BlockAlignRight();
+  if (ButtonCheckIcon(3, 2, !bModeOptions)) { // options
+    bModeOptions = !bModeOptions;
   }
   BlockVerticalSeparator();
-  if (Button(MenuWidth * 0.3 - 4, "Save")) {
+  if (ButtonIcon(2, 2)) { // save
     extern void SaveConfigFile();
     SaveConfigFile();
   }
   BlockVerticalSeparator();
-  if (ButtonCheck("Options", !bModeOptions)) {
-    bModeOptions = !bModeOptions;
+  BlockAlignLeft();
+  if (Button("Add Coder")) {
+    EnterNewCoderMode();
   }
   BlockNextLine();
 
@@ -790,6 +795,26 @@ void DialogCommon(float ElapsedTime) {
   }
   if (ButtonIcon(1, 0, true)) { // minus
     DiapoBPM = max(1, DiapoBPM - 1);
+  }
+  
+  if (TapTempoLastTime < 2.0f) {
+    if (TapTempoLastTime < 0.1f) {
+      glColor3d(0, 1, 0);
+    }else {
+      glColor3d(1, 0, 0);
+    }
+    DrawQuad(BlockCurrentRight - 25, BlockPositionY + BlockIconOffset, 22, 25);
+    TapTempoLastTime += ElapsedTime;
+  } else {
+    TapTempoCount = 0;
+  }
+  if (ButtonIcon(1, 2)) { // tap
+    if (TapTempoCount > 0) {
+      float TargetBPM = 60.0f / TapTempoLastTime;
+      DiapoBPM = max(1, round((DiapoBPM * (TapTempoCount-1) + TargetBPM) / TapTempoCount));
+    }
+    TapTempoLastTime = 0.0f;
+    TapTempoCount++;
   }
   BlockVerticalSeparator();
   BlockAlignLeft();
