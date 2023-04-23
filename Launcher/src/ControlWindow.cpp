@@ -1,5 +1,6 @@
 
 #include "ControlWindow.h"
+#include "Network.h"
 
 #include <cstdio>
 
@@ -840,7 +841,7 @@ void DialogCommon(float ElapsedTime) {
   for (int i = 0; i < Instances.size(); ++i) {
     Instance* Cur = Instances[i];
     if (Cur) {
-      if (!Cur->IsHidden) ++VisibleInstances;
+      if (Cur->IsShowMosaic()) ++VisibleInstances;
     }
   }
   std::string VisibleCountText = tostr(VisibleInstances);
@@ -871,10 +872,11 @@ void DialogCoderList(float ElapsedTime) {
   std::vector<class Instance*>& Instances = GetInstances();
   for (int i = 0; i < Instances.size(); ++i) {
     Instance* Cur = Instances[i];
+    bool Launched = Cur->Launched;
 
     BlockAlignRight();
 
-    if (bModeOptions) {
+    if (Launched && bModeOptions) {
       if (ButtonIcon(3, 1)) { // delete coder
         if (Cur) {
           // If we delete the fullscreen instance, go back to the mosaic
@@ -925,9 +927,16 @@ void DialogCoderList(float ElapsedTime) {
         RefreshDisplay();
       }
     }
-    if (ButtonCheckIcon(0, 2, !Cur->IsHidden)) { // show/hidden coder
-      ToggleHidden(Cur);
+    if (Launched) {
+      if (ButtonCheckIcon(0, 2, Cur->IsShowMosaic())) { // show/hidden coder
+        ToggleHidden(Cur);
+      }
+    } else {
+      if (ButtonIcon(0, 0)) { // Add unlaunched coder
+        Cur->InitBonzo();
+      }
     }
+    
 
     BlockVerticalSeparator();
 
@@ -936,8 +945,14 @@ void DialogCoderList(float ElapsedTime) {
 
     int CoderRightSide = BlockCurrentRight;
 
-    if (Button(Cur->CoderName.c_str())) {
-      ToggleFullscreen(Cur);
+    if (Launched) {
+      if (Button(Cur->CoderName.c_str())) {
+        ToggleFullscreen(Cur);
+      }
+    } else {
+      int w = BlockCurrentRight - BlockCurrentLeft;
+      SetColor(ColorText);
+      DrawLabel(BlockPush(w) + 10, BlockPositionY + FontSize / 4 + BlockButtonHeight / 2, Cur->CoderName.c_str());
     }
 
     // separator below the coder
@@ -958,6 +973,8 @@ void DialogCoderList(float ElapsedTime) {
 }
 
 void UpdateControlWindow(float ElapsedTime) {
+
+  Network::Tick();
 
   UpdateDiaporama(ElapsedTime);
   SortInstances();

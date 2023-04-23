@@ -4,8 +4,12 @@
 #include "jsonxx.h"
 #include <map>
 
+#include "Instances.h"
+
 namespace Network {
 
+  static bool NetworkLaunched = false;
+  
 static int s_done = 0;
 static int s_is_connected = 0;
 
@@ -106,6 +110,7 @@ void OpenConnection(std::string ServerURL)
     fprintf(stderr, "Invalid address\n");
     return;
   }
+  NetworkLaunched = true;
 }
 
 void RecieveShader(size_t size, unsigned char *data) {
@@ -139,6 +144,7 @@ void RecieveShader(size_t size, unsigned char *data) {
   std::string RoomName = Data.get<jsonxx::String>("RoomName");
 	std::string NickName = Data.get<jsonxx::String>("NickName");
   std::string FullName = RoomName + "/" + NickName;
+  SignalLiveUser(NickName);
   auto search = ConnectedUsers.find(FullName);
   if (search != ConnectedUsers.end()) {
       search->second.LastReceiveTime = CurrentFrame;
@@ -162,13 +168,17 @@ void DisplayRooms() {
 }
 
 void Tick() {
-  mg_mgr_poll(&mgr, 10);
-  DisplayRooms();
-  CurrentFrame++;
+  if (NetworkLaunched) {
+    mg_mgr_poll(&mgr, 10);
+    DisplayRooms();
+    CurrentFrame++;
+  }
 }
 
 void Release() {
-   mg_mgr_free(&mgr);
+  if (NetworkLaunched) {
+    mg_mgr_free(&mgr);
+  }
 }
 
 }
