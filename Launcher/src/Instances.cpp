@@ -68,7 +68,8 @@ bool WantTextEditor = true;
 
 bool CoderHiddenAtBottom = false;
 bool CoderAutoAdd = true;
-bool CoderAutoLaunchBonzo = false;
+bool CoderAutoLaunchBonzo = true;
+bool CoderAutoLaunchBonzoNetwork = false;
 
 bool IsDiapoLaunched() { return DiapoLaunched; }
 
@@ -223,6 +224,13 @@ void StartDiaporama() {
 
 void StopDiaporama() {
   DiapoLaunched = false;
+}
+
+void TickInstances(float ElapsedTime) {
+  for (int i = 0; i < Instances.size(); ++i) {
+    Instances[i]->TimeLastLive = min(Instances[i]->TimeLastLive + ElapsedTime, 10000.0f);
+  }
+  UpdateDiaporama(ElapsedTime);
 }
 
 void UpdateDiaporama(float ElapsedTime) {
@@ -501,12 +509,13 @@ void RefreshDisplay() {
   }
 }
 
-Instance* AddInstance(std::string CoderName) {
+Instance* AddInstance(std::string CoderName, bool FromNetwork) {
   if (ShuttingDown) return NULL;
   Instance* NewInstance = new Instance();
   if (NewInstance->Init(CoderName)) {
     Instances.push_back(NewInstance);
-    if (CoderAutoLaunchBonzo) {
+    bool AutoLaunch = FromNetwork ? CoderAutoLaunchBonzoNetwork : CoderAutoLaunchBonzo;
+    if (AutoLaunch) {
       NewInstance->InitBonzo();
     }
   } else {
@@ -606,9 +615,10 @@ bool LaunchInstances(jsonxx::Object options)
   if (options.has<jsonxx::Object>("network"))
   {
     jsonxx::Object netjson = options.get<jsonxx::Object>("network");
-    if (netjson.has<jsonxx::Boolean>("receiveuserlist")) UseNetwork = netjson.get<jsonxx::Boolean>("receiveuserlist");
+    if (netjson.has<jsonxx::Boolean>("usenetwork")) UseNetwork = netjson.get<jsonxx::Boolean>("usenetwork");
     if (netjson.has<jsonxx::Boolean>("autoaddcoder")) CoderAutoAdd = netjson.get<jsonxx::Boolean>("autoaddcoder");
     if (netjson.has<jsonxx::Boolean>("autolaunchbonzo")) CoderAutoLaunchBonzo = netjson.get<jsonxx::Boolean>("autolaunchbonzo");
+    if (netjson.has<jsonxx::Boolean>("autolaunchbonzonetwork")) CoderAutoLaunchBonzoNetwork = netjson.get<jsonxx::Boolean>("autolaunchbonzonetwork");
     if (netjson.has<jsonxx::String>("serverURL")) ServerURL = netjson.get<jsonxx::String>("serverURL");
   }
   
@@ -617,7 +627,7 @@ bool LaunchInstances(jsonxx::Object options)
     for (int i = 0; i < coderjson.size(); ++i) {
       std::string codername = coderjson.get<jsonxx::String>(i);
       printf("[LAUNCHER] Add coder %s \n", codername);
-      AddInstance(codername);
+      AddInstance(codername, false);
     }
   }
 
@@ -657,6 +667,15 @@ void SignalLiveUser(std::string UserName) {
   // no coder found
   if (CoderAutoAdd && !ShuttingDown) {
     printf("[LAUNCHER] Network Add coder %s \n", UserName.c_str());
-    AddInstance(UserName);
+    AddInstance(UserName, true);
+  }
+}
+
+void ToggleNetwork() {
+  bool HadNetwork = Network::IsLaunched();
+  Network::Release();
+  if (!HadNetwork) {
+    Network::PrepareConnection();
+    Network::OpenConnection(ServerURL);
   }
 }

@@ -4,8 +4,10 @@
 
 namespace Network
 {
-void PrepareConnection();
-void OpenConnection(std::string ServerURL);
-void Tick();
-void Release();
+  void PrepareConnection();
+  void OpenConnection(std::string ServerURL);
+  void Tick(float ElapsedTime);
+  void Release();
+  bool IsLaunched();
+  bool IsActive();
 }

@@ -81,7 +81,7 @@ void EnterNewCoderMode() {
 void ValidNewCoder() {
   if (sNewCoderName.size() > 0) {
     printf("[LAUNCHER] Add coder %s \n", sNewCoderName.c_str());
-    AddInstance(sNewCoderName);
+    AddInstance(sNewCoderName, false);
     FocusControlWindow();
     RefreshDisplay();
   }
@@ -324,6 +324,13 @@ void DrawQuad(int x, int y, int w, int h) {
   glVertex3f(x+w, y+h, -10);
   glVertex3f(x, y+h, -10);
   glEnd();
+}
+
+void DrawQuadEdges(int x, int y, int w, int h, int s) {
+  DrawQuad(x, y, w, s);
+  DrawQuad(x, y + h-s, w, s);
+  DrawQuad(x, y, s, h);
+  DrawQuad(x + w - s, y, s, h);
 }
 
 GLFWwindow* mWindow;
@@ -755,13 +762,24 @@ void DialogNewCoder(float ElapsedTime) {
 void DialogCommon(float ElapsedTime) {
 
   ///////////////
-  // Buttons: add coder, save, options
+  // Buttons: add coder, save, network, options
   ///////////////
 
   BlockAlignRight();
   if (ButtonCheckIcon(3, 2, !bModeOptions)) { // options
     bModeOptions = !bModeOptions;
   }
+  BlockVerticalSeparator();
+  ThemeColor PrevColUncheck = ColorButtonUncheck;
+  if (Network::IsActive()) {
+    ColorButtonUncheck = { 0.1,1.0,0.1,1 };
+  } else {
+    ColorButtonUncheck = { 1.0,0.1,0.1,1 };
+  }
+  if (ButtonCheckIcon(0, 3, !Network::IsLaunched())) { // network
+    ToggleNetwork();
+  }
+  ColorButtonUncheck = PrevColUncheck;
   BlockVerticalSeparator();
   if (ButtonIcon(2, 2)) { // save
     extern void SaveConfigFile();
@@ -819,16 +837,14 @@ void DialogCommon(float ElapsedTime) {
   }
   BlockVerticalSeparator();
   BlockAlignLeft();
+  int DiapoRightSide = BlockCurrentRight;
   if (Button(DiapoTitle.c_str())) {
     ToggleDiaporama();
   }
   if (IsDiapoLaunched()) {
-    glColor3d(0, 1, 0);
-  }
-  else {
     glColor3d(1, 0, 0);
+    DrawQuadEdges(BlockMarginLeft, BlockPositionY, DiapoRightSide - BlockMarginLeft, BlockButtonHeight, 4);
   }
-  DrawQuad(BlockMarginLeft - 5, BlockPositionY, 5, BlockButtonHeight);
   BlockNextLine();
 
   ///////////////
@@ -949,6 +965,11 @@ void DialogCoderList(float ElapsedTime) {
       if (Button(Cur->CoderName.c_str())) {
         ToggleFullscreen(Cur);
       }
+      if (Cur->IsFullScreen) {
+
+        glColor3d(1, 0, 0);
+        DrawQuadEdges(BlockMarginLeft, BlockPositionY, CoderRightSide - BlockMarginLeft, BlockButtonHeight-2, 4);
+      }
     } else {
       int w = BlockCurrentRight - BlockCurrentLeft;
       SetColor(ColorText);
@@ -957,15 +978,17 @@ void DialogCoderList(float ElapsedTime) {
 
     // separator below the coder
     glColor3d(0, 0, 0);
-    DrawQuad(BlockMarginLeft, BlockPositionY + 23, CoderRightSide - BlockMarginLeft, 2);
+    DrawQuad(BlockMarginLeft, BlockPositionY + BlockButtonHeight - 2, CoderRightSide - BlockMarginLeft, 2);
 
-    if (Cur->IsFullScreen) {
-      glColor3d(0, 1, 0);
+    if (Network::IsLaunched) {
+      if (Cur->TimeLastLive < 2.0f) {
+        glColor3d(0, 1, 0);
+      }
+      else {
+        glColor3d(1, 0, 0);
+      }
+      DrawQuad(BlockMarginLeft - 5, BlockPositionY, 5, 23);
     }
-    else {
-      glColor3d(1, 0, 0);
-    }
-    DrawQuad(BlockMarginLeft - 5, BlockPositionY, 5, 23);
 
     BlockNextLine();
   }
@@ -974,9 +997,9 @@ void DialogCoderList(float ElapsedTime) {
 
 void UpdateControlWindow(float ElapsedTime) {
 
-  Network::Tick();
+  Network::Tick(ElapsedTime);
 
-  UpdateDiaporama(ElapsedTime);
+  TickInstances(ElapsedTime);
   SortInstances();
 
   const float ar = (float)nWidth / (float)nHeight;
