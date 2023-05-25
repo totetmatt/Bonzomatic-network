@@ -23,7 +23,7 @@ jobs:
     runs-on: windows-2019
     needs: create_release
     env:
-      NDI_SDK_DIR: c:/Program Files/NewTek/NewTek NDI SDK/
+      NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
     steps:
     - name: Get date
       id: date
