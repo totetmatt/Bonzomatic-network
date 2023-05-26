@@ -5,19 +5,19 @@ jobs:
     runs-on: windows-2019
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
-      date: ${{ steps.date.outputs.date }}
+      date: ${{  env.date_release }}
     steps:
     - name: Get date
       id: date
-      run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+      run: echo "date_release=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.date.outputs.date }}
-        release_name: ${{ steps.date.outputs.date }}
+        tag_name: ${{ env.date_release }}
+        release_name: ${{  env.date_release }}
         draft: true
   build_release_w32:
     runs-on: windows-2019
@@ -27,7 +27,7 @@ jobs:
     steps:
     - name: Get date
       id: date
-      run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
     - name: Download and install NDI SDK
       run: |
         curl ${{ secrets.NDI_SDK_URL }} -o ndisdk.exe
@@ -92,7 +92,7 @@ jobs:
     steps:
     - name: Get date
       id: date
-      run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
     - name: Download and install NDI SDK
       run: |
         curl ${{ secrets.NDI_SDK_URL }} -o ndisdk.exe
@@ -154,7 +154,7 @@ jobs:
     needs: create_release
     steps:
     - name: Checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
     - name: Build
       run: cmake . && cmake --build .
     - name: Create subdirs # There are no mac-specific resources currently
