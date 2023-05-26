@@ -11,13 +11,11 @@ jobs:
     env:
       NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
     steps:
-    - name: Get date
-      id: date
-      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+    - uses: actions/checkout@v3
     - name: Download and install NDI SDK
       run: "echo test >> ~/test.txt"
     - name: Download and install NDI SDK
-      run: "ls -alih"
+      run: "dir ~/"
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
