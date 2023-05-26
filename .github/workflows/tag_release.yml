@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: windows-2019
-    needs: create_release
     env:
       NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
     steps:
@@ -20,6 +19,7 @@ jobs:
         
   release:
     runs-on: windows-2019
+    needs: build
     steps:
       - name: Checkout
         uses: actions/checkout@v3
