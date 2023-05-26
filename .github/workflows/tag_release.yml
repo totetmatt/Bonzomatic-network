@@ -8,8 +8,22 @@ on:
 jobs:
   build:
     runs-on: windows-2019
+    needs: create_release
+    env:
+      NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
+    steps:
+    - name: Get date
+      id: date
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+    - name: Download and install NDI SDK
+      run: echo test >> test.txt
+        
+  release:
+    runs-on: windows-2019
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Release
         uses: softprops/action-gh-release@v1
+        with:
+          files: test.txt
