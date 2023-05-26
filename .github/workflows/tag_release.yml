@@ -20,6 +20,5 @@ jobs:
       run: "ls -alih"
     - name: Release
       uses: softprops/action-gh-release@v1
-      title: "Bonzomatic Netowrk"
       with:
         files: ~/test.txt
