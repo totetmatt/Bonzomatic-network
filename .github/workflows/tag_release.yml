@@ -22,7 +22,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: Bonzomatic Network  ${{ env.RELEASE_VERSION }}
+          name: Bonzomatic Network  ${{ github.ref_name }}
           allowUpdates: true
           files: |
             Release.txt
