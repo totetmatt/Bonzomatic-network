@@ -9,5 +9,4 @@ runs:
       with:
         name: Bonzomatic Network  ${{ github.ref_name }}
         files: |
-          Release_1.txt
-          Release_2.txt
+          ./package/**/*.zip

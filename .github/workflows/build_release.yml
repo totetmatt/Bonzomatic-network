@@ -1,29 +1,14 @@
 name: build-release
-on: [workflow_dispatch]
+on:
+  push:
+    tags:
+      - "v*.*.*"
 jobs:
-  create_release:
-    runs-on: windows-2019
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      date: ${{  env.date_release }}
-    steps:
-    - name: Get date
-      id: date
-      run: echo "date_release=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ env.date_release }}
-        release_name: ${{  env.date_release }}
-        draft: true
   build_release_w32:
     runs-on: windows-2019
-    needs: create_release
     env:
       NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
+      BONZO_ZIPFILE: Bonzo_Network_${{ github.ref_name }}_x86.zip
     steps:
     - name: Get date
       id: date
@@ -73,22 +58,14 @@ jobs:
         cp -r ../common/* ./
     - name: ZIP package
       working-directory: ./package/w32_x86/
-      run: 7z a -r -tzip archive.zip * -mx9
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./package/w32_x86/archive.zip
-        asset_name: Bonzomatic_W32_${{ needs.create_release.outputs.date }}.zip
-        asset_content_type: application/zip
+      run: 7z a -r -tzip ${{env.BONZO_ZIPFILE}} * -mx9
+    - name: composite
+      uses: ./.github/actions/release-version
   build_release_x64:
     runs-on: windows-2019
-    needs: create_release
     env:
       NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
+      BONZO_ZIPFILE: Bonzo_Network_${{ github.ref_name }}_x64.zip
     steps:
     - name: Get date
       id: date
@@ -138,20 +115,13 @@ jobs:
         cp -r ../common/* ./
     - name: ZIP package
       working-directory: ./package/w32_x64/
-      run: 7z a -r -tzip archive.zip * -mx9
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./package/w32_x64/archive.zip
-        asset_name: Bonzomatic_W64_${{ needs.create_release.outputs.date }}.zip
-        asset_content_type: application/zip
+      run: 7z a -r -tzip ${{env.BONZO_ZIPFILE}} * -mx9
+    - name: composite
+      uses: ./.github/actions/release-version
   build_release_osx:
     runs-on: macOS-latest
-    needs: create_release
+    env:
+      BONZO_ZIPFILE: Bonzo_Network_${{ github.ref_name }}_macOs.zip
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -168,14 +138,6 @@ jobs:
         cp -r ../common/* ./
     - name: ZIP package
       working-directory: ./package/macos/
-      run: 7z a -r -tzip archive.zip * -mx9
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./package/macos/archive.zip
-        asset_name: Bonzomatic_macOS_${{ needs.create_release.outputs.date }}.zip
-        asset_content_type: application/zip
+      run: 7z a -r -tzip ${{env.BONZO_ZIPFILE}} * -mx9
+    - name: composite
+      uses: ./.github/actions/release-version

@@ -1,9 +1,5 @@
 name: Tag Release
-on:
-  push:
-    tags:
-      - "v*.*.*"
-
+on: [workflow_dispatch]
 jobs:
   build_1:
     runs-on: windows-2019
