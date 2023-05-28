@@ -5,7 +5,7 @@ on:
       - "v*.*.*"
 
 jobs:
-  build:
+  build_1:
     runs-on: windows-2019
     env:
       NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
@@ -15,7 +15,22 @@ jobs:
       - name: Set env
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Build
-        run: echo ${{ github.sha }} > Release.txt
+        run: echo ${{ github.sha }}_1 > Release_1.txt
+      - name: Test
+        run: cat Release.txt
+      - name: composite
+        uses: ./.github/actions/release-version
+  build_2:
+    runs-on: windows-2019
+    env:
+      NDI_SDK_DIR: c:/Program Files/NewTek/NDI 4 SDK/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set env
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Build
+        run: echo ${{ github.sha }}_2 > Release_2.txt
       - name: Test
         run: cat Release.txt
       - name: composite
