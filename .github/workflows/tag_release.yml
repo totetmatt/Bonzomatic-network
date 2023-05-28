@@ -17,7 +17,7 @@ jobs:
       - name: Build
         run: echo ${{ github.sha }}_1 > Release_1.txt
       - name: Test
-        run: cat Release.txt
+        run: cat Release_1.txt
       - name: composite
         uses: ./.github/actions/release-version
   build_2:
@@ -32,6 +32,6 @@ jobs:
       - name: Build
         run: echo ${{ github.sha }}_2 > Release_2.txt
       - name: Test
-        run: cat Release.txt
+        run: cat Release_2.txt
       - name: composite
         uses: ./.github/actions/release-version
