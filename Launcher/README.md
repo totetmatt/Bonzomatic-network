@@ -39,7 +39,7 @@ Example: (all fields are optional)
 {
   "bonzo": {
     "commandline": "skipdialog networkMode=grabber",
-    "delay_between_spawn": 500,
+    "delay_between_spawn": 1000,
     "exename": "Bonzomatic_W64_GLFW.exe"
   },
   "coders": [
@@ -49,49 +49,54 @@ Example: (all fields are optional)
     "Coder_04"
   ],
   "diaporama": {
-    "bpm": 60,
-    "infiniteloop": false,
-    "loops": 1
-  },
-  "font": {
-    "file": "ProFontWindows.ttf",
-    "size": 16
-  },
-  "fullscreen": {
-    "codertogglemosaic": false,
-    "monitor": 0,
-    "forceratio": true,
-    "sizepercent_x": 1,
-    "sizepercent_y": 1,
-    "startpercent_x": 0,
-    "startpercent_y": 0,
-    "wantedratio": 1.7777
-  },
-  "mosaic": {
-    "monitor": 0,
-    "MosaicFixed": false,
-    "forceratio": true,
-    "sizepercent_x": 0.9,
-    "sizepercent_y": 0.9,
-    "startpercent_x": 0.05,
-    "startpercent_y": 0.05,
-    "wantedratio": 1.7777
-  },
-  "secondary": {
-    "use":  true,
-    "monitor": 1,
-    "MosaicFixed": false,
-    "forceratio": true,
-    "sizepercent_x": 0.4,
-    "sizepercent_y": 0.4,
-    "startpercent_x": 0.4,
-    "startpercent_y": 0.4,
-    "wantedratio": 1.7777
-  },
+		"bpm": 60,
+		"infiniteloop": false,
+		"loops": 1 
+	},
+	"font": {
+		"file": "ProFontWindows.ttf",
+		"size": 16 
+	},
+	"fullscreen": {
+		"forceratio": true,
+		"monitor": 0,
+		"sizepercent_x": 1,
+		"sizepercent_y": 1,
+		"startpercent_x": 0,
+		"startpercent_y": 0,
+		"wantedratio": 1.7777 
+	},
+	"list": {
+		"codertogglemosaic": false,
+		"hiddenatbottom": false 
+	},
+	"mosaic": {
+		"MosaicFixed": false,
+		"forceratio": true,
+		"monitor": 0,
+		"sizepercent_x": 0.9,
+		"sizepercent_y": 0.9,
+		"startpercent_x": 0.05,
+		"startpercent_y": 0.05,
+		"wantedratio": 1.7777 
+	},
   "network": {
-    "receiveuserlist": false,
+    "usenetwork": false,
+    "autoaddcoder": true,
+    "autolaunchbonzo": true,
+    "autolaunchbonzonetwork": false,
     "serverURL": "ws:\/\/drone.alkama.com:9000\/roomtest\/"
   },
+	"secondary": {
+		"forceratio": true,
+		"monitor": 1,
+		"sizepercent_x": 0.4,
+		"sizepercent_y": 0.4,
+		"startpercent_x": 0.4,
+		"startpercent_y": 0.4,
+		"use": true,
+		"wantedratio": 1.7777 
+	},
   "theme": {
     "background": "202020",
     "text": "FFFFFF",
@@ -100,7 +105,7 @@ Example: (all fields are optional)
     "buttonPress": "FFFFFF",
     "buttonUncheck": "CC3333",
     "buttonUncheckHover": "FF8080",
-    "scrollbar":  "404040"
+    "scrollbar": "404040"
   }
 } 
 ```

@@ -1,6 +1,7 @@
 
 #include "Instances.h"
 #include "ControlWindow.h"
+#include "Network.h"
 
 #include <stdio.h>
 #include <string>
@@ -34,6 +35,8 @@ struct ScreenArea {
   }
 };
 
+bool ShuttingDown = false;
+
 bool UseSecondaryScreen = true;
 ScreenArea ScreenMain(0, 0.0f, 0.0f, 1.0f, 1.0f);
 ScreenArea ScreenSecondary(1, 0.3f, 0.3f, 0.4f, 0.4f);
@@ -64,6 +67,9 @@ bool DiapoLaunched = false;
 bool WantTextEditor = true;
 
 bool CoderHiddenAtBottom = false;
+bool CoderAutoAdd = true;
+bool CoderAutoLaunchBonzo = true;
+bool CoderAutoLaunchBonzoNetwork = false;
 
 bool IsDiapoLaunched() { return DiapoLaunched; }
 
@@ -117,7 +123,7 @@ void FullscreenIndex(int index) {
 
 void FullscreenPrev() {
   int NewIndex = LastFullScreenIndex - 1;
-  while(NewIndex >=0 && NewIndex <Instances.size() && Instances[NewIndex]->IsHidden) {
+  while(NewIndex >=0 && NewIndex <Instances.size() && !Instances[NewIndex]->IsShowMosaic()) {
     --NewIndex;
   }
   FullscreenIndex(NewIndex);
@@ -125,7 +131,7 @@ void FullscreenPrev() {
 
 void FullscreenNext() {
   int NewIndex = LastFullScreenIndex + 1;
-  while (NewIndex >= 0 && NewIndex < Instances.size() && Instances[NewIndex]->IsHidden) {
+  while (NewIndex >= 0 && NewIndex < Instances.size() && !Instances[NewIndex]->IsShowMosaic()) {
     ++NewIndex;
   }
   FullscreenIndex(NewIndex);
@@ -154,7 +160,7 @@ void RandomFullscreen() {
   std::vector<Instance*> List;
   for (int i = 0; i < Instances.size(); ++i) {
     Instance* Cur = Instances[i];
-    if (!Cur->IsHidden && !Cur->IsFullScreen) {
+    if (Cur->IsShowMosaic() && !Cur->IsFullScreen) {
       List.push_back(Cur);
     }
   }
@@ -220,6 +226,13 @@ void StopDiaporama() {
   DiapoLaunched = false;
 }
 
+void TickInstances(float ElapsedTime) {
+  for (int i = 0; i < Instances.size(); ++i) {
+    Instances[i]->TimeLastLive = min(Instances[i]->TimeLastLive + ElapsedTime, 10000.0f);
+  }
+  UpdateDiaporama(ElapsedTime);
+}
+
 void UpdateDiaporama(float ElapsedTime) {
   if (DiapoLaunched) {
     DiapoCurrentTime += ElapsedTime;
@@ -254,7 +267,7 @@ void UpdateDiaporama(float ElapsedTime) {
         if (UseRandomShuffle) {
           CurrentIndex = RandomIndexes[DiapoCurrentIndex % RandomIndexes.size()];
         }
-        CurDiapoHidden = CurrentIndex < Instances.size() ? Instances[CurrentIndex]->IsHidden : true;
+        CurDiapoHidden = CurrentIndex < Instances.size() ? !Instances[CurrentIndex]->IsShowMosaic() : true;
         if (CurDiapoHidden) {
           HiddenDiapoCounter++;
         }
@@ -288,7 +301,13 @@ Instance::Instance()
 
 bool Instance::Init(std::string InCoderName)
 {
+  Launched = false;
   CoderName = InCoderName;
+  return true;
+}
+
+bool Instance::InitBonzo() {
+  Launched = true;
 
   memset(&siStartupInfo, 0, sizeof(siStartupInfo));
   memset(&piProcessInfo, 0, sizeof(piProcessInfo));
@@ -311,16 +330,27 @@ bool Instance::Init(std::string InCoderName)
 
     /* Watch the process. */
     dwExitCode = WaitForSingleObject(piProcessInfo.hProcess, DelayInitWindows);
+    if (dwExitCode = 258) {
+      printf("[LAUNCHER] Failed to get process handle.\n");
+    }
 
     //printf("[LAUNCHER] Process initialized.\n");
-
     EnumWindows(EnumWindowsProc, (LPARAM)(this));
+    if (!hwnd) {
+      printf("[LAUNCHER] Failed to get window handle.\n");
+    }
 
     LONG WindowStyle = GetWindowLong(hwnd, GWL_STYLE);
     WindowStyle &= ~WS_CAPTION;
     WindowStyle &= ~WS_MAXIMIZEBOX;
     WindowStyle &= ~WS_THICKFRAME;
     SetWindowLong(hwnd, GWL_STYLE, WindowStyle);
+
+    if (!WantTextEditor) {
+      ToggleTextEditorInWindow(hwnd);
+    }
+    FocusControlWindow();
+    RefreshDisplay();
   }
   else
   {
@@ -335,16 +365,19 @@ bool Instance::Init(std::string InCoderName)
 
 void Instance::Release()
 {
-  SendMessage(hwnd, WM_CLOSE, NULL, NULL);
-  /* Release handles */
-  CloseHandle(piProcessInfo.hProcess);
-  CloseHandle(piProcessInfo.hThread);
+  if (Launched) {
+    SendMessage(hwnd, WM_CLOSE, NULL, NULL);
+    /* Release handles */
+    CloseHandle(piProcessInfo.hProcess);
+    CloseHandle(piProcessInfo.hThread);
+  }
 }
 
 void Instance::Restart()
 {
   Release();
   Init(CoderName);
+  InitBonzo();
   RefreshDisplay();
 }
 
@@ -380,13 +413,14 @@ void UpdateMonitors() {
 
 void ToggleHidden(Instance* Target) {
   Target->IsHidden = !Target->IsHidden;
-  //ShowWindow(Target->hwnd, Target->IsHidden ? SW_HIDE : SW_SHOW);
+  //ShowWindow(Target->hwnd, Target->IsShowMosaic() ? SW_SHOW : SW_HIDE);
   if (!GlobalIsFullscreen) {
     ShowMosaic();
   }
 }
 
 void SetInstancePositionRatio(Instance* Cur, int PosX, int PosY, int Width, int Height, bool UseRatio, float WantedRatio) {
+  if (!Cur->Launched) return;
 
   if (UseRatio && Height>0) {
     float Ratio = float(Width) / Height;
@@ -406,6 +440,7 @@ void SetInstancePositionRatio(Instance* Cur, int PosX, int PosY, int Width, int 
 }
 
 void SetMinimalPosition(Instance* Cur) {
+  if (!Cur->Launched) return;
   SetWindowPos(Cur->hwnd, HWND_TOP, 0, 0, 1, 1, SWP_ASYNCWINDOWPOS);
   ShowWindow(Cur->hwnd, SW_HIDE);
 }
@@ -426,7 +461,8 @@ void RefreshDisplay() {
 
   int NumberOfInstances = 0;
   for (int i = 0; i < Instances.size(); ++i) {
-    if (MosaicFixed || !Instances[i]->IsHidden) {
+    Instance* Cur = Instances[i];
+    if ((MosaicFixed && Cur->Launched) || Cur->IsShowMosaic()) {
       ++NumberOfInstances;
     }
   }
@@ -460,26 +496,27 @@ void RefreshDisplay() {
         }
       }
     } else {
-      if (Cur->IsHidden) {
-        SetMinimalPosition(Cur);
-      }
-      else {
+      if (Cur->IsShowMosaic()) {
         SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize, RowSize, Mosaic->ForceRatio, Mosaic->WantedRatio);
+      } else {
+        SetMinimalPosition(Cur);
       }
     }
     
-    if (MosaicFixed || !Cur->IsHidden) {
+    if ((MosaicFixed && Cur->Launched) || Cur->IsShowMosaic()) {
       ++CurIndex;
     }
   }
 }
 
-Instance* AddInstance(std::string CoderName) {
+Instance* AddInstance(std::string CoderName, bool FromNetwork) {
+  if (ShuttingDown) return NULL;
   Instance* NewInstance = new Instance();
   if (NewInstance->Init(CoderName)) {
     Instances.push_back(NewInstance);
-    if (!WantTextEditor) {
-      ToggleTextEditorInWindow(NewInstance->hwnd);
+    bool AutoLaunch = FromNetwork ? CoderAutoLaunchBonzoNetwork : CoderAutoLaunchBonzo;
+    if (AutoLaunch) {
+      NewInstance->InitBonzo();
     }
   } else {
     delete NewInstance;
@@ -497,16 +534,19 @@ void RemoveInstance(Instance* instance) {
 }
 
 void SortInstances() {
+  if (Instances.size() < 2) return;
   for (int i = 0; i < Instances.size() - 1; ++i) {
     Instance* Cur = Instances[i];
     Instance* Next = Instances[i + 1];
     if (Cur && Next) {
+      bool swap = !Cur->Launched && Next->Launched;
       if (CoderHiddenAtBottom) {
-        if (Cur->IsHidden && !Next->IsHidden) {
-          // swap
-          Instances[i] = Next;
-          Instances[i + 1] = Cur;
-        }
+        swap |= Cur->IsHidden && !Next->IsHidden;
+      }
+      if (swap) {
+        // swap
+        Instances[i] = Next;
+        Instances[i + 1] = Cur;
       }
     }
   }
@@ -575,23 +615,25 @@ bool LaunchInstances(jsonxx::Object options)
   if (options.has<jsonxx::Object>("network"))
   {
     jsonxx::Object netjson = options.get<jsonxx::Object>("network");
-    if (netjson.has<jsonxx::Boolean>("receiveuserlist")) UseNetwork = netjson.get<jsonxx::Boolean>("receiveuserlist");
+    if (netjson.has<jsonxx::Boolean>("usenetwork")) UseNetwork = netjson.get<jsonxx::Boolean>("usenetwork");
+    if (netjson.has<jsonxx::Boolean>("autoaddcoder")) CoderAutoAdd = netjson.get<jsonxx::Boolean>("autoaddcoder");
+    if (netjson.has<jsonxx::Boolean>("autolaunchbonzo")) CoderAutoLaunchBonzo = netjson.get<jsonxx::Boolean>("autolaunchbonzo");
+    if (netjson.has<jsonxx::Boolean>("autolaunchbonzonetwork")) CoderAutoLaunchBonzoNetwork = netjson.get<jsonxx::Boolean>("autolaunchbonzonetwork");
     if (netjson.has<jsonxx::String>("serverURL")) ServerURL = netjson.get<jsonxx::String>("serverURL");
   }
   
-  if (UseNetwork) {
-    // TODO
-  } else {
-    if (options.has<jsonxx::Array>("coders")) {
-      jsonxx::Array coderjson = options.get<jsonxx::Array>("coders");
-      for (int i = 0; i < coderjson.size(); ++i) {
-        std::string codername = coderjson.get<jsonxx::String>(i);
-        printf("[LAUNCHER] Add coder %s \n", codername);
-        AddInstance(codername);
-      }
-    } else {
-      printf("[LAUNCHER] Missing coders section in config file \n");
+  if (options.has<jsonxx::Array>("coders")) {
+    jsonxx::Array coderjson = options.get<jsonxx::Array>("coders");
+    for (int i = 0; i < coderjson.size(); ++i) {
+      std::string codername = coderjson.get<jsonxx::String>(i);
+      printf("[LAUNCHER] Add coder %s \n", codername);
+      AddInstance(codername, false);
     }
+  }
+
+  if (UseNetwork) {
+    Network::PrepareConnection();
+    Network::OpenConnection(ServerURL);
   }
 
   RefreshDisplay();
@@ -600,14 +642,40 @@ bool LaunchInstances(jsonxx::Object options)
 }
 
 void ReleaseInstances() {
+  ShuttingDown = true;
   for (auto const& Cur : Instances) {
     Cur->Release();
     delete Cur;
   }
   Instances.clear();
+
+  Network::Release();
 }
 
 std::vector<class Instance*>& GetInstances()
 {
   return Instances;
+}
+
+void SignalLiveUser(std::string UserName) {
+  for (auto const& Cur : Instances) {
+    if (Cur->CoderName == UserName) {
+      Cur->TimeLastLive = 0.0f;
+      return;
+    }
+  }
+  // no coder found
+  if (CoderAutoAdd && !ShuttingDown) {
+    printf("[LAUNCHER] Network Add coder %s \n", UserName.c_str());
+    AddInstance(UserName, true);
+  }
+}
+
+void ToggleNetwork() {
+  bool HadNetwork = Network::IsLaunched();
+  Network::Release();
+  if (!HadNetwork) {
+    Network::PrepareConnection();
+    Network::OpenConnection(ServerURL);
+  }
 }

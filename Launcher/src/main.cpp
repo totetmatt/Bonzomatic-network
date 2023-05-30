@@ -110,9 +110,6 @@ int main(int argc, const char *argv[])
   LoadConfigFile();
   
   InitControlWindow(options);
-  
-  //Network::PrepareConnection();
-  //Network::OpenConnection("ws://127.0.0.1:8000/");
 
   LaunchInstances(options);
   
@@ -122,16 +119,10 @@ int main(int argc, const char *argv[])
     float ElapsedTime = NewTime - Time;
     Time = NewTime;
     UpdateControlWindow(ElapsedTime);
-    //Network::Tick();
-	  //Sleep(30);
   }
   CloseControlWindow();
   
-
   ReleaseInstances();
-
-  //Network::Release();
-
 
   exit(0);
   return 0;

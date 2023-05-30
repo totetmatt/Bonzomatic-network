@@ -13,17 +13,22 @@ public:
   PROCESS_INFORMATION piProcessInfo;
 
   std::string CoderName;
+  bool Launched;
   bool IsFullScreen = false;
   bool IsHidden = false;
   bool FirstDisplay = true;
+  float TimeLastLive = 10000.0f;
 
   Instance();
   bool Init(std::string CoderName);
+  bool InitBonzo();
   void Release();
   void Restart();
+
+  bool IsShowMosaic() { return Launched && !IsHidden; }
 };
 
-Instance* AddInstance(std::string CoderName);
+Instance* AddInstance(std::string CoderName, bool FromNetwork);
 void RemoveInstance(Instance* instance);
 bool LaunchInstances(jsonxx::Object options);
 void ReleaseInstances();
@@ -45,5 +50,9 @@ void ToggleTextEditor();
 
 void StartDiaporama();
 void StopDiaporama();
+void TickInstances(float ElapsedTime);
 void UpdateDiaporama(float ElapsedTime);
 bool IsDiapoLaunched();
+
+void SignalLiveUser(std::string UserName);
+void ToggleNetwork();
