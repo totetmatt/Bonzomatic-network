@@ -56,3 +56,4 @@ bool IsDiapoLaunched();
 
 void SignalLiveUser(std::string UserName);
 void ToggleNetwork();
+void InitMidi();

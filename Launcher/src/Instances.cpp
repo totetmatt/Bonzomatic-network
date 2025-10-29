@@ -9,7 +9,7 @@
 
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
-
+#include "Launchpad.h"
 bool MosaicFixed = false;
 
 struct ScreenArea {
@@ -446,7 +446,28 @@ void SetMinimalPosition(Instance* Cur) {
 }
 
 void RefreshDisplay() {
+  board_off();
+  set_led(8,8,LED_COLOR_GREEN_1);
+  set_led(7,8,LED_COLOR_GREEN_1);
 
+  for (int i = 0; i < Instances.size(); ++i) {
+          Instance* Cur = Instances[i];
+          if ( !Cur->Launched) {
+              set_led(0,4,LED_COLOR_GREEN_1);
+             break;
+          
+          }
+        }
+
+
+  
+  if(GlobalIsFullscreen) {
+    set_led(0,7,LED_COLOR_RED_3);
+  } else {
+   set_led(0,7,LED_COLOR_GREEN_3);
+  }
+  set_led(0,0,LED_COLOR_GREEN_1|LED_COLOR_RED_1);
+  set_led(0,1,LED_COLOR_GREEN_1|LED_COLOR_RED_1);
   bool IsFullScreen = GlobalIsFullscreen;
   
   ScreenArea* Mosaic = &ScreenMain;
@@ -464,8 +485,12 @@ void RefreshDisplay() {
     Instance* Cur = Instances[i];
     if ((MosaicFixed && Cur->Launched) || Cur->IsShowMosaic()) {
       ++NumberOfInstances;
+     
     }
   }
+  
+  int width = (int)ceilf(sqrtf(NumberOfInstances));
+ 
   
   int NumColumn = NumberOfInstances < 1 ? 1 : ceil(sqrt(NumberOfInstances));
   int NumRow = NumberOfInstances < 1 ? 1 : ceil(float(NumberOfInstances) / NumColumn);
@@ -478,6 +503,10 @@ void RefreshDisplay() {
   
   int CurIndex = 0;
   for (int i = 0; i < Instances.size(); ++i) {
+   
+    int y = 1+CurIndex/width;
+    int x = CurIndex%width;
+   
     auto const& Cur = Instances[i];
 
     int PosX = (CurIndex % NumColumn) * (ColumnSize + Mosaic->BlankSpaceX) + PixelScreenOffsetX;
@@ -485,10 +514,14 @@ void RefreshDisplay() {
 
     if (IsFullScreen) {
       if (Cur->IsFullScreen) {
+      
         SetInstancePositionRatio(Cur, PixelFullScreenOffsetX, PixelFullScreenOffsetY, FullWidth, FullHeight, ScreenFull.ForceRatio, ScreenFull.WantedRatio);
       }
       else {
+        
+
         if (UseSecondaryScreen) {
+      
           SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize, RowSize, Mosaic->ForceRatio, Mosaic->WantedRatio);
         }
         else {
@@ -496,6 +529,7 @@ void RefreshDisplay() {
         }
       }
     } else {
+        
       if (Cur->IsShowMosaic()) {
         SetInstancePositionRatio(Cur, PosX, PosY, ColumnSize, RowSize, Mosaic->ForceRatio, Mosaic->WantedRatio);
       } else {
@@ -503,7 +537,14 @@ void RefreshDisplay() {
       }
     }
     
+ 
     if ((MosaicFixed && Cur->Launched) || Cur->IsShowMosaic()) {
+      if(Cur->IsFullScreen) {
+              set_led(y,x,LED_COLOR_GREEN_3);
+        } else {
+                set_led(y,x,LED_COLOR_GREEN_3|LED_COLOR_RED_3);
+        }
+        //printf("%i - width:%i (y:%i,x:%i)\n",CurIndex, width,y,x);
       ++CurIndex;
     }
   }

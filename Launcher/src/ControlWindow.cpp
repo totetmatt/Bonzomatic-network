@@ -21,7 +21,7 @@
 #include "GLFW/glfw3.h"
 
 #include "icons.h"
-
+#include "Launchpad.h"
 static void error_callback(int error, const char *description) {
   switch (error) {
   case GLFW_API_UNAVAILABLE:
@@ -373,9 +373,121 @@ ThemeColor ParseColor(const std::string& color) {
 void SetColor(ThemeColor Col) {
   glColor4d(Col.R, Col.G, Col.B, Col.A);
 }
+void CALLBACK MidiInProc(HMIDIIN hMidiIn, UINT wMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+{
+   // printf("Callback\n");
+	switch(wMsg) {
+	case MIM_OPEN:
+		printf("wMsg=MIM_OPEN\n");
+		break;
+	case MIM_CLOSE:
+		printf("wMsg=MIM_CLOSE\n");
+		break;
+	case MIM_DATA: {
+		    //printf("wMsg=MIM_DATA, dwInstance=%08x, dwParam1=%08x, dwParam2=%08x\n", dwInstance, dwParam1, dwParam2);
+        Message m;
+        m.word = dwParam1;
+        //printf("%i %i %i \n",m.data[0],m.data[1],m.data[2]);
+        std::vector<class Instance*>& Instances = GetInstances();
+        int NumberOfInstances = 0;
+        for (int i = 0; i < Instances.size(); ++i) {
+          Instance* Cur = Instances[i];
+          if (( Cur->Launched) || Cur->IsShowMosaic()) {
+            ++NumberOfInstances;
+          
+          }
+        }
+        int width = (int)ceilf(sqrtf(NumberOfInstances));
+        //printf("NumberOfInstances:%i\n",NumberOfInstances);
+        int pad_y =m.data[1]/0x10;
+        int pad_x =m.data[1]%0x10;
+        int inst_idx = pad_y*width+pad_x;
+        if(m.data[0]== 0x90 /* PAD */
+          && m.data[2]==127 && inst_idx < NumberOfInstances 
+           && pad_y>=0 && pad_y<width && pad_x>=0 && pad_x<width) {
+             //printf("pad_y:%i,pad_x:%i,inst_idx:%i\n",pad_y,pad_x,inst_idx);
+             int idx = 0;
+              for (auto const& Cur : Instances) {
+                //printf("Launched:%i, IsHidden:%i \n",Cur->Launched ,Cur->IsHidden );
+                if(Cur->Launched) {
+                     if(Cur->IsHidden){inst_idx++;};
+                  if(idx==inst_idx){break;};
+                
+                  idx++;
 
+                }
+              }
+          ToggleFullscreen(Instances[idx]);
+          return;
+        }
+        if(m.data[0]== 0x90
+         && m.data[2]==127 
+         && m.data[1]==0x78) {
+          RandomFullscreen();
+          return;
+         }
+        if(m.data[0]==0xB0 && m.data[2]==127 && m.data[1]==0x6F) {
+          ShowMosaic();
+          return;
+        }
+        
+        if(m.data[0]==0xB0 && m.data[2]==127 && m.data[1]==0x68) {
+          FullscreenPrev();
+          return;
+        }
+        
+        if(m.data[0]==0xB0 && m.data[2]==127 && m.data[1]==0x69) {
+          FullscreenNext();
+          return;
+        }
+
+        if(m.data[0] == 0x90 && m.data[2] == 127 && m.data[1] == 0x68) {
+          ToggleDiaporama();
+          return;
+        }
+
+        if(m.data[0] == 0xB0 && m.data[2] == 127 && m.data[1] == 0x6C) {
+
+          for (int i = 0; i < Instances.size(); ++i) {
+          Instance* Cur = Instances[i];
+          if ( !Cur->Launched) {
+             Cur->InitBonzo();
+             break;
+          
+          }
+        }
+          return;
+        }
+      }
+		break;
+	case MIM_LONGDATA:
+		printf("wMsg=MIM_LONGDATA\n"); 
+		break;
+	case MIM_ERROR:
+		printf("wMsg=MIM_ERROR\n");
+		break;
+	case MIM_LONGERROR:
+		printf("wMsg=MIM_LONGERROR\n");
+		break;
+	case MIM_MOREDATA:
+		printf("wMsg=MIM_MOREDATA\n");
+		break;
+	default:
+		printf("wMsg = unknown\n");
+		break;
+	}
+	return;
+}
+void InitMidi(){
+  printf("Init Midi Instance\n");
+  init_midi_device_out();
+  board_off();
+
+  init_midi_device_in((DWORD_PTR) MidiInProc);
+ 
+}
 bool InitControlWindow(jsonxx::Object options) {
-  
+  InitMidi();
   glfwSetErrorCallback(error_callback);
 
   if (!glfwInit())
@@ -857,9 +969,10 @@ void DialogCommon(float ElapsedTime) {
   for (int i = 0; i < Instances.size(); ++i) {
     Instance* Cur = Instances[i];
     if (Cur) {
-      if (Cur->IsShowMosaic()) ++VisibleInstances;
+      if (Cur->IsShowMosaic()) {++VisibleInstances;}
     }
   }
+
   std::string VisibleCountText = tostr(VisibleInstances);
   std::string InstanceCountText = tostr(Instances.size());
   std::string MosaicTitle = "Mosaic (" + VisibleCountText + "/" + InstanceCountText + ")";
@@ -1077,6 +1190,7 @@ bool WantsToQuit()
 }
 
 void CloseControlWindow() {
+  board_off();
   glfwDestroyWindow(mWindow);
   glfwTerminate();
 }

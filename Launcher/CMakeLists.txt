@@ -1,7 +1,7 @@
 project(Launcher)
 
-cmake_minimum_required(VERSION 3.0)
-
+cmake_minimum_required(VERSION 3.5)
+add_definitions(-w)
 set(BZC_EXE_NAME "Launcher")
 
 ##############################################################################
@@ -63,6 +63,8 @@ set(BZC_PROJECT_SRCS
   ${CMAKE_SOURCE_DIR}/src/ControlWindow.cpp
   ${CMAKE_SOURCE_DIR}/src/Instances.h
   ${CMAKE_SOURCE_DIR}/src/Instances.cpp
+  ${CMAKE_SOURCE_DIR}/src/Launchpad.h
+  ${CMAKE_SOURCE_DIR}/src/Launchpad.cpp
 )
 
 ##############################################################################
